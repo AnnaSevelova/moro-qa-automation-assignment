@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 
 export type Position = {
     name: string;
@@ -11,8 +11,13 @@ export class CareerPage {
     readonly heading: Locator;
     readonly positions: Locator;
     readonly visiblePositionNames: Locator;
+    /*
+     * The city filter is a custom select without accessible roles to locate it by: its options are radio
+     * buttons hidden from the accessibility tree, and the toggle link's name changes to the selected city.
+     */
     readonly cityFilter: Locator;
-    private readonly cityFilterToggle: Locator;
+    /** Shows the selected city, "Všechna města" when no city is selected. */
+    readonly cityFilterToggle: Locator;
 
     constructor(page: Page) {
         const positionsSection = page.locator('#pozice');
@@ -38,6 +43,5 @@ export class CareerPage {
     async filterByCity(city: string): Promise<void> {
         await this.cityFilterToggle.click();
         await this.cityFilter.locator('label').getByText(city, { exact: true }).click();
-        await expect(this.cityFilterToggle).toHaveText(city);
     }
 }
