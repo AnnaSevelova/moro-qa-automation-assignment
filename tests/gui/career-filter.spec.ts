@@ -9,7 +9,7 @@ import { PREFERRED_CITY } from './fixtures/test-data.ts';
  */
 test.describe('MoroSystems career page', () => {
     test.beforeEach(async ({ moroSystemsHomePage }) => {
-        await moroSystemsHomePage.open();
+        await moroSystemsHomePage.goTo();
     });
 
     test('navigates from homepage to "Kariéra" and filters open positions by city', async ({

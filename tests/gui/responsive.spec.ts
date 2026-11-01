@@ -17,7 +17,7 @@ for (const screen of SCREENS) {
         test.use({ viewport: screen.viewport });
 
         test.beforeEach(async ({ moroSystemsHomePage }) => {
-            await moroSystemsHomePage.open();
+            await moroSystemsHomePage.goTo();
         });
 
         test('homepage fits the screen', async ({ page, moroSystemsHomePage }) => {

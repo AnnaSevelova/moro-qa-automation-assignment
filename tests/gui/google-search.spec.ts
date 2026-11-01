@@ -1,37 +1,27 @@
 import { expect, test } from './fixtures/fixtures.ts';
 import { stubGoogleSearchResults } from './mocks/google-search.ts';
-import { dismissIfPresent } from './support/dismiss-if-present.ts';
 import { CareerPage } from './pages/career-page.ts';
-import { GoogleSearchPage } from './pages/google-search-page.ts';
 import { MoroSystemsHomePage } from './pages/moro-systems-home-page.ts';
-
-const SEARCH_QUERY = 'morosystems';
-const SEARCH_RESULTS_URL = `https://www.google.com/search?q=${SEARCH_QUERY}&hl=cs`;
+import { SEARCH_QUERY } from './fixtures/test-data.ts';
 
 test.describe('Google search page', () => {
-    test.beforeEach(async ({ page }) => {
+    test.beforeEach(async ({ page, googleSearchPage }) => {
         // The search request is still captured and checked, but answered locally,
         // so no automated query reaches Google Search (see README).
         await stubGoogleSearchResults(page);
 
-        const response = await page.goto(GoogleSearchPage.URL, {
-            waitUntil: 'domcontentloaded',
-        });
+        const response = await googleSearchPage.goTo();
 
         expect(response?.status()).toBe(200);
     });
 
-    test('searches for morosystems and sends the correct search request', async ({
+    test('searches for MoroSystems and sends the correct search request', async ({
         page,
         googleSearchPage,
     }) => {
-        await test.step('Reject cookies if consent dialog appears', async () => {
-            const rejectAllButton = page.getByRole('button', {
-                name: 'Odmítnout vše',
-            });
-
-            await dismissIfPresent(rejectAllButton);
-            await expect(rejectAllButton).toBeHidden();
+        await test.step('Cookie consent dialog is closed', async () => {
+            // goTo() rejects optional cookies when Google asks for consent (it doesn't in every region)
+            await expect(googleSearchPage.rejectAllCookiesButton).toBeHidden();
         });
 
         await test.step('Check the Google search page', async () => {
@@ -92,7 +82,7 @@ test.describe('Google search results page (mocked)', () => {
         page,
         googleSearchPage,
     }) => {
-        const response = await page.goto(SEARCH_RESULTS_URL);
+        const response = await googleSearchPage.goToResults(SEARCH_QUERY);
 
         expect(response?.status()).toBe(200);
 
@@ -119,7 +109,7 @@ test.describe('Google search results page (mocked)', () => {
         page,
         googleSearchPage,
     }) => {
-        await page.goto(SEARCH_RESULTS_URL);
+        await googleSearchPage.goToResults(SEARCH_QUERY);
 
         await test.step('Verify result count and the first result', async () => {
             // Like on Google, the result count is only shown after opening "Nástroje" (tools)
@@ -156,9 +146,7 @@ test.describe('Google search results page (mocked)', () => {
     }) => {
         const unknownQuery = 'neexistujici dotaz 12345';
 
-        await page.goto(
-            `https://www.google.com/search?q=${encodeURIComponent(unknownQuery)}&hl=cs`,
-        );
+        await googleSearchPage.goToResults(unknownQuery);
 
         await test.step('Verify the no results message', async () => {
             await expect(googleSearchPage.results).toContainText(
@@ -189,9 +177,8 @@ test.describe('Google search results page (live)', { tag: '@live' }, () => {
         googleSearchPage,
     }, testInfo) => {
         await test.step('Navigate directly to Google results and record diagnostics', async () => {
-            const response = await page.goto(SEARCH_RESULTS_URL, {
-                waitUntil: 'domcontentloaded',
-            });
+            const response = await googleSearchPage.goToResults(SEARCH_QUERY);
+            await googleSearchPage.rejectCookiesIfAsked();
             const isCaptcha = new URL(page.url()).pathname.startsWith('/sorry');
 
             // Diagnostics end up in the HTML report, so a failed live check can be explained afterwards

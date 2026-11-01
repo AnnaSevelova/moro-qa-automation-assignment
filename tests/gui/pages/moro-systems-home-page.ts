@@ -1,4 +1,4 @@
-import type { Locator, Page } from '@playwright/test';
+import type { Locator, Page, Response } from '@playwright/test';
 
 import { dismissIfPresent } from '../support/dismiss-if-present.ts';
 
@@ -23,12 +23,16 @@ export class MoroSystemsHomePage {
         this.heading = page.getByRole('heading', { level: 1 });
         this.mainNavigation = header.getByRole('navigation');
         this.menuButton = this.mainNavigation.getByRole('link', { name: 'Menu', exact: true });
-        this.onlyNecessaryCookiesButton = page.getByRole('button', { name: 'Pouze nutné' });
+        this.onlyNecessaryCookiesButton = page.getByRole('dialog', { name: 'Cookie consent dialog' })
+            .getByRole('button', { name: 'Pouze nutné' });
     }
 
-    async open(): Promise<void> {
-        await this.page.goto(MoroSystemsHomePage.URL);
+    /** Opens the homepage and rejects optional cookies if the consent dialog appears. */
+    async goTo(): Promise<Response | null> {
+        const response = await this.page.goto(MoroSystemsHomePage.URL);
         await this.rejectOptionalCookies();
+
+        return response;
     }
 
     async rejectOptionalCookies(): Promise<void> {

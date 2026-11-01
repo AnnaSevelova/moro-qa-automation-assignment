@@ -18,7 +18,7 @@ test.describe('Google search to MoroSystems career', () => {
         careerPage,
     }) => {
         await test.step('Navigate to Google', async () => {
-            await googleSearchPage.open();
+            await googleSearchPage.goTo();
             await expect(googleSearchPage.searchInput).toBeVisible();
         });
 
