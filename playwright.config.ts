@@ -23,7 +23,8 @@ const guiBrowsers: Project[] = [
     { name: 'gui-chromium', use: { ...devices['Desktop Chrome'] } },
     { name: 'gui-firefox', use: { ...devices['Desktop Firefox'] } },
     { name: 'gui-webkit', use: { ...devices['Desktop Safari'] } },
-    ...(isEdgeInstalled ? [{ name: 'gui-edge', use: { ...devices['Desktop Edge'] } }] : []),
+    // The "Desktop Edge" preset only sets Edge's viewport and user agent, the channel launches the real Edge
+    ...(isEdgeInstalled ? [{ name: 'gui-edge', use: { ...devices['Desktop Edge'], channel: 'msedge' } }] : []),
 ];
 
 /**

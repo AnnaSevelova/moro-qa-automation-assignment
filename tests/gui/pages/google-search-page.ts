@@ -5,6 +5,8 @@ import { dismissIfPresent } from '../support/dismiss-if-present.ts';
 export class GoogleSearchPage {
     static readonly URL = 'https://www.google.com/';
 
+    /** The form the search box submits, the structure the search flow relies on. */
+    readonly searchForm: Locator;
     readonly searchInput: Locator;
     readonly results: Locator;
     readonly resultStats: Locator;
@@ -12,6 +14,7 @@ export class GoogleSearchPage {
 
     constructor(private readonly page: Page) {
         this.searchInput = page.locator('[name="q"]');
+        this.searchForm = page.locator('form').filter({ has: this.searchInput });
         this.results = page.locator('#search');
         this.resultStats = page.locator('#result-stats');
         this.rejectAllCookiesButton = page.getByRole('button', { name: /^(Odmítnout vše|Reject all)$/ });

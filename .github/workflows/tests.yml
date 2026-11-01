@@ -6,83 +6,117 @@ on:
   pull_request:
   workflow_dispatch:
 
-# A newer push to the same branch makes older runs pointless.
+# A newer push to a pull request makes its older runs pointless. Runs on main are never cancelled.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+  # Dependencies' install scripts don't run. Our own postinstall (installing the backend) is
+  # skipped too, so the backend is installed in an explicit step.
+  NPM_CONFIG_IGNORE_SCRIPTS: "true"
 
 jobs:
   api:
     name: Typecheck and API tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.0
+
+      - name: Setup Node.js with cache
+        uses: actions/setup-node@v6.3.0
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: |
             package-lock.json
             apps/todo-be/package-lock.json
 
-      # Also installs the backend in apps/todo-be (postinstall), which Playwright starts for the API tests.
-      - run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-      - run: npm run typecheck
+      # Playwright starts the backend (apps/todo-be) on port 8080 before the API tests and stops it afterwards.
+      - name: Install todo backend
+        run: npm ci --prefix apps/todo-be
 
-      - run: npm run test:api
+      - name: Typecheck
+        run: npm run typecheck
 
-      - name: Upload report
+      - name: Run API tests
+        run: npm run test:api
+
+      # Uploaded after every run, not only on failure: the report is the record of the test results.
+      - name: Publish API test report
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: report-api
           path: test-output/
-          retention-days: 14
+          retention-days: 7
+          if-no-files-found: warn
 
   gui:
-    name: GUI tests (${{ matrix.browser }})
+    name: GUI tests (${{ matrix.project }})
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       # Let every browser finish, so one failing browser doesn't hide the results of the others.
       fail-fast: false
       matrix:
-        browser: [chromium, firefox, webkit, msedge]
-        include:
-          - browser: chromium
-            project: gui-chromium
-          - browser: firefox
-            project: gui-firefox
-          - browser: webkit
-            project: gui-webkit
-          - browser: msedge
-            project: gui-edge
-    steps:
-      - uses: actions/checkout@v4
+        project: [gui-chromium, gui-firefox, gui-webkit, gui-edge]
 
-      - uses: actions/setup-node@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.0
+
+      - name: Setup Node.js with cache
+        uses: actions/setup-node@v6.3.0
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: |
             package-lock.json
             apps/todo-be/package-lock.json
 
-      - run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-      # Installs the browser and the system libraries it needs (for msedge, the stable Microsoft Edge).
-      # GitHub's Ubuntu runners already have Edge, and Playwright refuses to reinstall it without --force.
-      - run: npx playwright install --with-deps --force ${{ matrix.browser }}
+      # Playwright starts the backend for every run (see webServer in playwright.config.ts).
+      - name: Install todo backend
+        run: npm ci --prefix apps/todo-be
 
-      - run: npx playwright test --project=${{ matrix.project }} --grep-invert @live
+      - name: Cache Playwright browsers
+        uses: actions/cache@v6.0.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
 
-      - name: Upload report
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      # Edge is not bundled with Playwright. GitHub's runners already have it, and Playwright
+      # refuses to reinstall it without --force, which also updates it to the current stable version.
+      - name: Install Microsoft Edge
+        if: ${{ matrix.project == 'gui-edge' }}
+        run: npx playwright install --with-deps --force msedge
+
+      - name: Run GUI tests
+        run: npx playwright test --project=${{ matrix.project }} --grep-invert @live
+
+      - name: Publish GUI test report
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: report-${{ matrix.project }}
           path: test-output/
-          retention-days: 14
+          retention-days: 7
+          if-no-files-found: warn
