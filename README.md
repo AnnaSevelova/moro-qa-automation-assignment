@@ -173,14 +173,13 @@ Findings in the backend:
 - `npm run lint` runs ESLint and fails on any error or warning, `npm run lint:fix` fixes what it can
 - `npm run typecheck` runs the TypeScript compiler (strict mode, no output)
 
-The ESLint rules (`eslint.config.mjs`) follow the shared config of our monorepo starter: JavaScript and
-typescript-eslint recommended and stylistic rules with the same overrides, and `eslint-plugin-playwright`
-for the tests (no conditionals or missing assertions in tests, awaited Playwright calls, and so on). The
-starter formats code with Prettier in its own style; this project keeps its style (single quotes,
-semicolons, 4 spaces), enforced with `@stylistic` rules. The tested backend in `apps/` is not linted.
+The ESLint rules (`eslint.config.mjs`) are JavaScript and typescript-eslint recommended and stylistic
+rules, and `eslint-plugin-playwright` for the tests (no conditionals or missing assertions in tests, awaited
+Playwright calls, and so on). The code style (single quotes, semicolons, 4 spaces) is enforced with
+`@stylistic` rules. The tested backend in `apps/` is not linted.
 
-TypeScript is 6.0, the same as in the starter: typescript-eslint supports TypeScript up to 6.0, and
-TypeScript 7 (the native compiler) no longer has the JavaScript API it relies on.
+TypeScript is 6.0: typescript-eslint supports TypeScript up to 6.0, and TypeScript 7 (the native compiler)
+no longer has the JavaScript API it relies on.
 
 ## CI
 `.github/workflows/tests.yml` runs on every push to `main`, on pull requests and manually (GitHub Actions,
@@ -192,12 +191,11 @@ TypeScript 7 (the native compiler) no longer has the JavaScript API it relies on
   running in parallel. A failure in one browser doesn't stop the others. The `@live` Google check is never
   run in CI.
 
-The workflow follows the conventions of the QA workflow in our monorepo starter: action versions pinned to
-exact releases, read-only `contents` permission, Node version from `.nvmrc`, npm and Playwright browser
-caches, and dependencies' install scripts switched off (`NPM_CONFIG_IGNORE_SCRIPTS`), so the backend is
-installed in its own step instead of by `postinstall`. Unlike the starter, which publishes reports only on
-failure, every job uploads its `test-output` folder (HTML report, plus screenshots, video and trace of failed
-tests), because the report is the record of the test results. The artifacts are named `report-api` or
-`report-gui-<browser>` and kept for 7 days. To view a report, download the
-artifact, unzip it and run `npx playwright show-report <folder>/report`. In CI, failed tests are retried
-up to twice, so a test that passes on a retry is reported as flaky instead of failed.
+The workflow pins action versions to exact releases, has read-only `contents` permission, takes the Node
+version from `.nvmrc`, caches npm packages and Playwright browsers, and switches off dependencies' install
+scripts (`NPM_CONFIG_IGNORE_SCRIPTS`), so the backend is installed in its own step instead of by
+`postinstall`. Every job uploads its `test-output` folder (HTML report, plus screenshots, video and trace of
+failed tests) after every run, not only on failure, because the report is the record of the test results.
+The artifacts are named `report-api` or `report-gui-<browser>` and kept for 7 days. To view a report,
+download the artifact, unzip it and run `npx playwright show-report <folder>/report`. In CI, failed tests
+are retried up to twice, so a test that passes on a retry is reported as flaky instead of failed.

@@ -5,10 +5,8 @@ import globals from 'globals';
 import tsEslint from 'typescript-eslint';
 
 /**
- * Rules follow the shared ESLint config of our monorepo starter (@repo/eslint-config): JavaScript and
- * typescript-eslint recommended and stylistic rules with the same overrides, plus eslint-plugin-playwright,
- * which the starter uses for its Playwright tests. The code style (single quotes, semicolons, 4 spaces) is
- * this project's own, so it is enforced with @stylistic rules instead of the starter's Prettier setup.
+ * JavaScript and typescript-eslint recommended and stylistic rules, plus eslint-plugin-playwright for the
+ * tests. The code style (single quotes, semicolons, 4 spaces) is enforced with @stylistic rules.
  *
  * @type {import('eslint').Linter.Config[]}
  */
