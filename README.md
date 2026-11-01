@@ -235,6 +235,12 @@ no longer has the JavaScript API it relies on.
 - **GUI tests:** one job per browser project (`gui-chromium`, `gui-firefox`, `gui-webkit`, `gui-edge`),
   running in parallel. A failure in one browser doesn't stop the others. The `@live` Google check is never
   run in CI.
+- **Visual tests:** only on manual runs (see "Visual tests" above)
+
+Pushes and pull requests run all jobs except the visual tests. A manual run (Actions → Tests → Run
+workflow) can be started on any branch, with a choice of what to run: a checkbox per job (Lint, Typecheck,
+API tests, GUI tests, Visual tests) and the browser for the GUI tests (all of them, or one). By default a
+manual run does everything except the visual tests.
 
 The workflow pins action versions to exact releases, has read-only `contents` permission, takes the Node
 version from `.nvmrc`, caches npm packages and Playwright browsers, and switches off dependencies' install
