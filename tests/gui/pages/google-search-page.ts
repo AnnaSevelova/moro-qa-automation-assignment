@@ -18,7 +18,9 @@ export class GoogleSearchPage {
         this.searchForm = page.locator('form').filter({ has: this.searchInput });
         this.results = page.locator('#search');
         this.resultStats = page.locator('#result-stats');
-        this.rejectAllCookiesButton = page.getByRole('button', { name: /^(Odmítnout vše|Reject all)$/ });
+        // Scoped to the consent dialog, so a same-named button elsewhere on the page can't match
+        this.rejectAllCookiesButton = page.getByRole('dialog')
+            .getByRole('button', { name: /^(Odmítnout vše|Reject all)$/ });
     }
 
     /** Opens the Google homepage and rejects optional cookies if the consent dialog appears. */

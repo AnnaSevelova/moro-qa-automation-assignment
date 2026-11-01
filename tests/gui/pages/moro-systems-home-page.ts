@@ -23,7 +23,8 @@ export class MoroSystemsHomePage {
         this.heading = page.getByRole('heading', { level: 1 });
         this.mainNavigation = header.getByRole('navigation');
         this.menuButton = this.mainNavigation.getByRole('link', { name: 'Menu', exact: true });
-        this.onlyNecessaryCookiesButton = page.getByRole('button', { name: 'Pouze nutné' });
+        this.onlyNecessaryCookiesButton = page.getByRole('dialog', { name: 'Cookie consent dialog' })
+            .getByRole('button', { name: 'Pouze nutné' });
     }
 
     /** Opens the homepage and rejects optional cookies if the consent dialog appears. */
