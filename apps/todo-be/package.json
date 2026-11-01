@@ -1,0 +1,26 @@
+{
+  "name": "morosystems-todo-be",
+  "version": "2.0.0",
+  "description": "Simple backend for todo app",
+  "type": "module",
+  "engines": {
+    "node": ">=22.6.0",
+    "npm": ">=10"
+  },
+  "scripts": {
+    "start": "node --experimental-strip-types src/index.ts",
+    "start:watch": "node --experimental-strip-types --watch src/index.ts",
+    "test": "node test/performance.mjs"
+  },
+  "author": "morosystems",
+  "license": "MIT",
+  "dependencies": {
+    "@types/express": "5.0.3",
+    "body-parser": "2.2.0",
+    "express": "5.1.0",
+    "express-jsdoc-swagger": "1.8.0",
+    "lowdb": "7.0.1",
+    "nanoid": "5.1.5",
+    "node-fetch": "3.3.2"
+  }
+}
