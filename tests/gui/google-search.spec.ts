@@ -37,9 +37,8 @@ test.describe("Google search page", () => {
         await test.step("Check the Google search page", async () => {
             await expect(page).toHaveTitle("Google");
 
-            await expect(
-                page.getByRole("img", { name: "Google" }),
-            ).toBeVisible();
+            // The logo is not checked: Google replaces it with a Doodle on some days and in some regions
+            await expect(googleSearchPage.searchForm).toHaveAttribute("action", /\/search$/);
 
             await expect(googleSearchPage.searchInput).toBeVisible();
 
