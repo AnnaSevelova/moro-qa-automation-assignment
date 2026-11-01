@@ -1,0 +1,88 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same branch makes older runs pointless.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: Typecheck and API tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            apps/todo-be/package-lock.json
+
+      # Also installs the backend in apps/todo-be (postinstall), which Playwright starts for the API tests.
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm run test:api
+
+      - name: Upload report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-api
+          path: test-output/
+          retention-days: 14
+
+  gui:
+    name: GUI tests (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      # Let every browser finish, so one failing browser doesn't hide the results of the others.
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit, msedge]
+        include:
+          - browser: chromium
+            project: gui-chromium
+          - browser: firefox
+            project: gui-firefox
+          - browser: webkit
+            project: gui-webkit
+          - browser: msedge
+            project: gui-edge
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            apps/todo-be/package-lock.json
+
+      - run: npm ci
+
+      # Installs the browser and the system libraries it needs (for msedge, the stable Microsoft Edge).
+      # GitHub's Ubuntu runners already have Edge, and Playwright refuses to reinstall it without --force.
+      - run: npx playwright install --with-deps --force ${{ matrix.browser }}
+
+      - run: npx playwright test --project=${{ matrix.project }} --grep-invert @live
+
+      - name: Upload report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-${{ matrix.project }}
+          path: test-output/
+          retention-days: 14
