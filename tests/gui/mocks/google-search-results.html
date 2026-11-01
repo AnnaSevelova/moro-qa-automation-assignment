@@ -1,0 +1,91 @@
+<!doctype html>
+<!--
+    Stand-in for the Google search results page, served by google-search.ts.
+    It mirrors the structure of the real page (checked manually, November 2026) that the tests rely on:
+    search box, sponsored results above and outside #search, the #search container with result links
+    (an <h3> title and displayed URL), sitelinks as <h3> links, and the result count, which Google keeps
+    hidden until "Nástroje" (tools) is opened. It contains no Google code.
+    Placeholders: {{query}}, {{encodedQuery}}, {{ads}}, {{resultStats}}, {{results}}.
+-->
+<html lang="cs">
+<head>
+    <meta charset="utf-8">
+    <title>{{query}} - Hledat Googlem</title>
+    <style>
+        body { margin: 0; font-family: Arial, sans-serif; color: #202124; background: #fff; }
+        a { color: inherit; text-decoration: none; }
+
+        .header { display: flex; align-items: center; gap: 28px; padding: 20px 28px 0; }
+        .logo { font-size: 26px; font-weight: bold; letter-spacing: -1px; }
+        .logo .b { color: #4285f4; } .logo .r { color: #ea4335; } .logo .y { color: #fbbc05; } .logo .g { color: #34a853; }
+        .search-form { display: flex; align-items: center; width: 690px; max-width: 100%; height: 44px;
+            border: 1px solid #dfe1e5; border-radius: 24px; padding: 0 8px 0 20px; box-shadow: 0 1px 6px rgba(32, 33, 36, .18); }
+        .search-form textarea { flex: 1; border: 0; outline: 0; resize: none; height: 22px; font: 16px Arial, sans-serif; }
+        .search-form button { border: 0; background: none; color: #4285f4; font-size: 14px; cursor: pointer; }
+
+        .tabs { display: flex; gap: 24px; margin: 0; padding: 16px 0 0 180px; list-style: none;
+            border-bottom: 1px solid #ebebeb; font-size: 14px; }
+        .tabs a { display: inline-block; padding-bottom: 12px; color: #5f6368; }
+        .tabs a[aria-current="page"] { color: #1a73e8; border-bottom: 3px solid #1a73e8; }
+
+        main { padding: 0 0 40px 180px; max-width: 652px; }
+        .result-stats { margin: 12px 0 24px; color: #70757a; font-size: 14px; }
+
+        .result { margin-bottom: 30px; }
+        .result-site { display: flex; flex-direction: column; margin-bottom: 4px; font-size: 14px; }
+        .result-site cite { color: #4d5156; font-size: 12px; font-style: normal; }
+        .result h3 { margin: 0 0 3px; color: #1a0dab; font-size: 20px; font-weight: normal; }
+        .result > a:hover h3 { text-decoration: underline; }
+        .result-snippet { margin: 0; color: #4d5156; font-size: 14px; line-height: 1.58; }
+        .sitelinks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 32px; margin: 12px 0 0 16px; padding: 0; list-style: none; }
+        .sitelinks h3 { margin: 0; color: #1a0dab; font-size: 16px; }
+
+        .ads { margin: 20px 0 32px; }
+        .ads-label { margin: 0 0 12px; font-size: 14px; font-weight: bold; }
+
+        .no-results { font-size: 16px; line-height: 1.6; }
+
+        footer { padding: 16px 28px; background: #f2f2f2; color: #70757a; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <a class="logo" href="https://www.google.com/" aria-label="Přejít na hlavní stránku Google">
+            <span class="b">G</span><span class="r">o</span><span class="y">o</span><span class="b">g</span><span class="g">l</span><span class="r">e</span>
+        </a>
+        <form class="search-form" role="search" action="/search" method="get">
+            <textarea name="q" role="combobox" aria-label="Najít" aria-expanded="false" rows="1">{{query}}</textarea>
+            <button type="submit">Hledat</button>
+        </form>
+    </header>
+
+    <nav aria-label="Typy výsledků">
+        <ul class="tabs">
+            <li><a href="/search?q={{encodedQuery}}" aria-current="page">Vše</a></li>
+            <li><a href="/search?q={{encodedQuery}}&amp;udm=2">Obrázky</a></li>
+            <li><a href="/search?q={{encodedQuery}}&amp;tbm=vid">Videa</a></li>
+            <li><a href="/search?q={{encodedQuery}}&amp;tbm=nws">Zprávy</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <div id="result-stats" class="result-stats" hidden>{{resultStats}}</div>
+        {{ads}}
+        <div id="search">
+            {{results}}
+        </div>
+    </main>
+
+    <footer>Česko</footer>
+
+    <script>
+        // Like on Google, Enter in the search box submits the search instead of adding a new line
+        document.querySelector('.search-form textarea').addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                event.target.form.requestSubmit();
+            }
+        });
+    </script>
+</body>
+</html>
