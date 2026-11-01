@@ -178,6 +178,7 @@ test.describe('Google search results page (live)', { tag: '@live' }, () => {
     }, testInfo) => {
         await test.step('Navigate directly to Google results and record diagnostics', async () => {
             const response = await googleSearchPage.goToResults(SEARCH_QUERY);
+            await googleSearchPage.rejectCookiesIfAsked();
             const isCaptcha = new URL(page.url()).pathname.startsWith('/sorry');
 
             // Diagnostics end up in the HTML report, so a failed live check can be explained afterwards

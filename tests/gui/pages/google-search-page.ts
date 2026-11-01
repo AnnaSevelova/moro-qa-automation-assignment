@@ -7,13 +7,14 @@ export class GoogleSearchPage {
 
     /** The form the search box submits, the structure the search flow relies on. */
     readonly searchForm: Locator;
+    /** Hidden from the accessibility tree while Google's consent dialog is open, so reject cookies first. */
     readonly searchInput: Locator;
     readonly results: Locator;
     readonly resultStats: Locator;
     readonly rejectAllCookiesButton: Locator;
 
     constructor(private readonly page: Page) {
-        this.searchInput = page.locator('[name="q"]');
+        this.searchInput = page.getByRole('combobox', { name: 'Najít' });
         this.searchForm = page.locator('form').filter({ has: this.searchInput });
         this.results = page.locator('#search');
         this.resultStats = page.locator('#result-stats');
@@ -23,9 +24,14 @@ export class GoogleSearchPage {
     /** Opens the Google homepage and rejects optional cookies if the consent dialog appears. */
     async goTo(): Promise<Response | null> {
         const response = await this.page.goto(GoogleSearchPage.URL, { waitUntil: 'domcontentloaded' });
-        await dismissIfPresent(this.rejectAllCookiesButton);
+        await this.rejectCookiesIfAsked();
 
         return response;
+    }
+
+    /** Google asks for cookie consent only in some regions (e.g. in the EU), so the dialog may not appear. */
+    async rejectCookiesIfAsked(): Promise<void> {
+        await dismissIfPresent(this.rejectAllCookiesButton);
     }
 
     /** Opens the results page for a query directly, as a link to a Google search would. */

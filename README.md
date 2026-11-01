@@ -107,7 +107,7 @@ manually in a browser (November 2026):
 - the search request matches: `GET https://www.google.com/search` with `q`, sent from the homepage form.
   Google also sends session parameters (`ei`, `sxsrf`, `ved`, ...), which change on every visit, so the
   tests don't check them
-- the parts the tests rely on match: the `[name="q"]` search box (a textarea labelled "Najít"), the
+- the parts the tests rely on match: the search box (a textarea with role combobox, labelled "Najít"), the
   `#search` container, results as links with an `<h3>` title and displayed URL, the company website as
   the first result with sitelinks Kariéra, O nás, Kontakt and Naše řešení
 - titles, URLs and order of the results follow the real ones. The snippets and the result count are test
