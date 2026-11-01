@@ -165,3 +165,71 @@ jobs:
           path: test-output/
           retention-days: 7
           if-no-files-found: warn
+
+  # Only on manual runs: the visual tests compare the live MoroSystems website, which changes independently
+  # of this repository, so a difference there must not block pushes and pull requests here.
+  visual:
+    name: Visual tests (Chromium, Firefox)
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.0
+
+      # Only reads the Playwright version for the Docker image; dependencies are installed inside the container
+      - name: Setup Node.js
+        uses: actions/setup-node@v6.3.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Check for baseline snapshots
+        id: baselines
+        run: |
+          if find tests/visual -path '*-snapshots/linux/*' -name '*.png' | grep -q .; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No Linux baselines in tests/visual - generate them with npm run test:visual:docker:update."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Read Playwright version
+        id: playwright
+        if: ${{ steps.baselines.outputs.found == 'true' }}
+        run: echo "version=$(node -p "require('./package.json').devDependencies['@playwright/test']")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright Docker image
+        id: docker-cache
+        if: ${{ steps.baselines.outputs.found == 'true' }}
+        uses: actions/cache@v6.0.0
+        with:
+          path: /tmp/playwright-docker-image
+          key: playwright-docker-v${{ steps.playwright.outputs.version }}-noble-amd64
+
+      - name: Load or pull Playwright Docker image
+        if: ${{ steps.baselines.outputs.found == 'true' }}
+        run: |
+          IMAGE="mcr.microsoft.com/playwright:v${{ steps.playwright.outputs.version }}-noble"
+          CACHE_FILE="/tmp/playwright-docker-image/playwright.tar"
+          if [[ -f "$CACHE_FILE" ]]; then
+            docker load -i "$CACHE_FILE"
+          else
+            docker pull --platform linux/amd64 "$IMAGE"
+            mkdir -p /tmp/playwright-docker-image
+            docker save "$IMAGE" -o "$CACHE_FILE"
+          fi
+
+      - name: Run visual tests
+        if: ${{ steps.baselines.outputs.found == 'true' }}
+        run: npm run test:visual:docker
+
+      # Contains the expected, actual and diff images of every failed comparison
+      - name: Publish visual test report
+        if: ${{ !cancelled() && steps.baselines.outputs.found == 'true' }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: report-visual
+          path: test-output/
+          retention-days: 7
+          if-no-files-found: warn

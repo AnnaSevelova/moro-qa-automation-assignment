@@ -205,9 +205,9 @@ is written on the first run and the test fails, so a new baseline is never accep
 The Docker script uses the image matching the installed `@playwright/test` version, as `linux/amd64` like
 GitHub's runners, so baselines generated on an Apple Silicon Mac match CI (emulated there, so slower).
 
-**In CI** the visual tests are a separate workflow, `.github/workflows/visual.yml`, started manually
-(Actions → Visual tests → Run workflow). They don't run on pull requests: a change on the live website would
-otherwise block unrelated changes here.
+**In CI** the visual tests are a job of the main workflow, `.github/workflows/tests.yml`, that runs only
+when the workflow is started manually (Actions → Tests → Run workflow). They don't run on pushes and pull
+requests: a change on the live website would otherwise block unrelated changes here.
 
 ## Reports
 - `npm run test:report` opens the HTML report from the last run
