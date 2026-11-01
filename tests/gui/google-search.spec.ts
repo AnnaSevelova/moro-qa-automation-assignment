@@ -188,43 +188,33 @@ test.describe('Google search results page (live)', { tag: '@live' }, () => {
         page,
         googleSearchPage,
     }, testInfo) => {
-        await test.step('Navigate directly to Google results', async () => {
+        await test.step('Navigate directly to Google results and record diagnostics', async () => {
             const response = await page.goto(SEARCH_RESULTS_URL, {
                 waitUntil: 'domcontentloaded',
             });
+            const isCaptcha = new URL(page.url()).pathname.startsWith('/sorry');
 
-            console.log('\n[Google diagnostic] Direct navigation');
-            console.log(`Browser project: ${testInfo.project.name}`);
-            console.log(`HTTP status: ${response?.status() ?? 'none'}`);
-            console.log(`Final URL path: ${new URL(page.url()).pathname}`);
-        });
-
-        await test.step('Inspect live Google results', async () => {
-            const currentUrl = new URL(page.url());
-            const isCaptcha = currentUrl.pathname.startsWith('/sorry');
-
-            console.log('\n[Google diagnostic] Live results');
-            console.log(`CAPTCHA detected: ${isCaptcha}`);
-            console.log(`Page title: ${await page.title()}`);
-
-            const resultLinks = page.locator('a[href*="morosystems.cz"]');
-
-            console.log(
-                `MoroSystems links found: ${await resultLinks.count()}`,
-            );
-
+            // Diagnostics end up in the HTML report, so a failed live check can be explained afterwards
+            await testInfo.attach('google-live-diagnostic', {
+                body: [
+                    `Browser project: ${testInfo.project.name}`,
+                    `HTTP status: ${response?.status() ?? 'none'}`,
+                    `Final URL path: ${new URL(page.url()).pathname}`,
+                    `CAPTCHA detected: ${isCaptcha}`,
+                    `Page title: ${await page.title()}`,
+                    `MoroSystems links found: ${await page.locator('a[href*="morosystems.cz"]').count()}`,
+                ].join('\n'),
+                contentType: 'text/plain',
+            });
             await testInfo.attach('google-live-results', {
                 body: await page.screenshot({ fullPage: true }),
                 contentType: 'image/png',
             });
 
-            if (isCaptcha) {
-                throw new Error(
-                    'Google redirected Playwright to a CAPTCHA page. ' +
-                        'Live search results could not be verified.',
-                );
-            }
-
+            expect(
+                isCaptcha,
+                'Google redirected Playwright to a CAPTCHA page, live search results could not be verified',
+            ).toBe(false);
             await expect(page).toHaveURL(/\/search\?/);
         });
 

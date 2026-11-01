@@ -67,6 +67,8 @@ test.describe('Tasks API errors', () => {
         test.fail();
 
         const response = await todoApi.create({ text: 123 });
+        // While the bug exists, the request creates a task, which must not be left behind
+        // eslint-disable-next-line playwright/no-conditional-in-test
         if (response.ok()) {
             await todoApi.delete((await response.json()).id);
         }
