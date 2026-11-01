@@ -64,5 +64,6 @@ export class TodoApi {
 async function expectJson<T>(response: APIResponse): Promise<T> {
     expect(response.status(), await response.text()).toBe(200);
     expect(response.headers()['content-type']).toContain('application/json');
+
     return response.json() as Promise<T>;
 }

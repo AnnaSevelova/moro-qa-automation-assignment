@@ -103,6 +103,7 @@ export async function stubGoogleSearchResults(page: Page): Promise<void> {
     await page.route(isGoogleSearchUrl, async (route) => {
         if (!route.request().isNavigationRequest()) {
             await route.fallback();
+
             return;
         }
 

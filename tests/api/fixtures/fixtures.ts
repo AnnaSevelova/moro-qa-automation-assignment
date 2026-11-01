@@ -17,6 +17,7 @@ export const test = base.extend<ApiFixtures>({
         await use(async (text = uniqueText(testInfo.title)) => {
             const task = await todoApi.createOk(text);
             createdIds.push(task.id);
+
             return task;
         });
 
