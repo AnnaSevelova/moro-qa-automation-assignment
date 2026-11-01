@@ -1,4 +1,4 @@
-import type { Locator, Page } from '@playwright/test';
+import type { Locator, Page, Response } from '@playwright/test';
 
 import { dismissIfPresent } from '../support/dismiss-if-present.ts';
 
@@ -20,9 +20,21 @@ export class GoogleSearchPage {
         this.rejectAllCookiesButton = page.getByRole('button', { name: /^(Odmítnout vše|Reject all)$/ });
     }
 
-    async open(): Promise<void> {
-        await this.page.goto(GoogleSearchPage.URL);
+    /** Opens the Google homepage and rejects optional cookies if the consent dialog appears. */
+    async goTo(): Promise<Response | null> {
+        const response = await this.page.goto(GoogleSearchPage.URL, { waitUntil: 'domcontentloaded' });
         await dismissIfPresent(this.rejectAllCookiesButton);
+
+        return response;
+    }
+
+    /** Opens the results page for a query directly, as a link to a Google search would. */
+    async goToResults(query: string): Promise<Response | null> {
+        const url = new URL('search', GoogleSearchPage.URL);
+        url.searchParams.set('q', query);
+        url.searchParams.set('hl', 'cs');
+
+        return this.page.goto(url.toString(), { waitUntil: 'domcontentloaded' });
     }
 
     async search(query: string): Promise<void> {
