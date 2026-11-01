@@ -20,23 +20,24 @@ for (const screen of SCREENS) {
             await moroSystemsHomePage.open();
         });
 
-        test('homepage fits the screen and adapts the navigation', async ({ page, moroSystemsHomePage }) => {
+        test('homepage fits the screen', async ({ page, moroSystemsHomePage }) => {
             await expectNoHorizontalScroll(page);
             await expectFitsScreenWidth(moroSystemsHomePage.logo, page);
             await expectFitsScreenWidth(moroSystemsHomePage.heading, page);
-
-            if (screen.collapsedMenu) {
-                await test.step('Navigation is collapsed behind the "Menu" button', async () => {
-                    await expectFitsScreenWidth(moroSystemsHomePage.menuButton, page);
-                    await expect(moroSystemsHomePage.visibleNavigationLinks()).toHaveCount(1);
-                });
-            } else {
-                await test.step('Navigation is shown directly', async () => {
-                    await expect(moroSystemsHomePage.menuButton).toBeHidden();
-                    expect(await moroSystemsHomePage.visibleNavigationLinks().count()).toBeGreaterThan(1);
-                });
-            }
         });
+
+        // Which navigation a screen gets is test data, so each screen size defines only the test that applies
+        if (screen.collapsedMenu) {
+            test('navigation is collapsed behind the "Menu" button', async ({ page, moroSystemsHomePage }) => {
+                await expectFitsScreenWidth(moroSystemsHomePage.menuButton, page);
+                await expect(moroSystemsHomePage.visibleNavigationLinks()).toHaveCount(1);
+            });
+        } else {
+            test('navigation is shown directly', async ({ moroSystemsHomePage }) => {
+                await expect(moroSystemsHomePage.menuButton).toBeHidden();
+                expect(await moroSystemsHomePage.visibleNavigationLinks().count()).toBeGreaterThan(1);
+            });
+        }
 
         test('"Kariéra" page fits the screen and the city filter works', async ({
             page,

@@ -1,13 +1,13 @@
-import { expect, test } from "./fixtures/fixtures.ts";
-import { CareerPage } from "./pages/career-page.ts";
-import { filterAndValidatePositions } from "./support/career-assertions.ts";
-import { PREFERRED_CITY } from "./fixtures/test-data.ts";
+import { expect, test } from './fixtures/fixtures.ts';
+import { CareerPage } from './pages/career-page.ts';
+import { filterAndValidatePositions } from './support/career-assertions.ts';
+import { PREFERRED_CITY } from './fixtures/test-data.ts';
 
 /**
  * Covers the MoroSystems part of the scenario independently of Google,
  * which tends to block automated browsers with a CAPTCHA.
  */
-test.describe("MoroSystems career page", () => {
+test.describe('MoroSystems career page', () => {
     test.beforeEach(async ({ moroSystemsHomePage }) => {
         await moroSystemsHomePage.open();
     });

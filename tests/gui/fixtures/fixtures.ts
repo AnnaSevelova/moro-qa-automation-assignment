@@ -1,8 +1,8 @@
-import { test as base } from "@playwright/test";
+import { test as base } from '@playwright/test';
 
-import { CareerPage } from "../pages/career-page.ts";
-import { GoogleSearchPage } from "../pages/google-search-page.ts";
-import { MoroSystemsHomePage } from "../pages/moro-systems-home-page.ts";
+import { CareerPage } from '../pages/career-page.ts';
+import { GoogleSearchPage } from '../pages/google-search-page.ts';
+import { MoroSystemsHomePage } from '../pages/moro-systems-home-page.ts';
 
 type PageObjects = {
     googleSearchPage: GoogleSearchPage;
@@ -17,4 +17,4 @@ export const test = base.extend<PageObjects>({
     careerPage: async ({ page }, use) => use(new CareerPage(page)),
 });
 
-export { expect } from "@playwright/test";
+export { expect } from '@playwright/test';
