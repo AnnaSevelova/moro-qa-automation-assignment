@@ -9,7 +9,7 @@ Automated tests for the MoroSystems automation tester assignment, written in
   creating, listing, updating, completing and deleting tasks, plus invalid requests
 
 ## Requirements
-- Node.js 22.6 or newer, npm 10 or newer
+- Node.js 22.6 or newer (`.nvmrc` pins Node 22, used by CI and `nvm use`), npm 10 or newer
 
 ## Setup
 - `npm install` installs the test dependencies, then installs the backend in `apps/todo-be` from its own
@@ -174,11 +174,18 @@ Findings in the backend:
 ## CI
 `.github/workflows/tests.yml` runs on every push to `main`, on pull requests and manually (GitHub Actions,
 "Run workflow"):
-- **Typecheck and API tests:** one job, Playwright starts the backend from `apps/todo-be` itself
-- **GUI tests:** one job per browser (Chromium, Firefox, WebKit, Edge), running in parallel. A failure in one
-  browser doesn't stop the others. The `@live` Google check is never run in CI.
+- **Typecheck and API tests:** one job. The backend in `apps/todo-be` is installed from its own lockfile,
+  and Playwright starts it on port 8080 before the tests and stops it afterwards
+- **GUI tests:** one job per browser project (`gui-chromium`, `gui-firefox`, `gui-webkit`, `gui-edge`),
+  running in parallel. A failure in one browser doesn't stop the others. The `@live` Google check is never
+  run in CI.
 
-Each job uploads its `test-output` folder (HTML report, plus screenshots, video and trace of failed tests) as
-an artifact named `report-api` or `report-gui-<browser>`, kept for 14 days. To view a report, download the
+The workflow follows the conventions of the QA workflow in our monorepo starter: action versions pinned to
+exact releases, read-only `contents` permission, Node version from `.nvmrc`, npm and Playwright browser
+caches, and dependencies' install scripts switched off (`NPM_CONFIG_IGNORE_SCRIPTS`), so the backend is
+installed in its own step instead of by `postinstall`. Unlike the starter, which publishes reports only on
+failure, every job uploads its `test-output` folder (HTML report, plus screenshots, video and trace of failed
+tests), because the report is the record of the test results. The artifacts are named `report-api` or
+`report-gui-<browser>` and kept for 7 days. To view a report, download the
 artifact, unzip it and run `npx playwright show-report <folder>/report`. In CI, failed tests are retried
 up to twice, so a test that passes on a retry is reported as flaky instead of failed.
