@@ -9,8 +9,11 @@
     "npm": ">=10"
   },
   "scripts": {
+    "postinstall": "npm ci --prefix apps/todo-be",
+    "api:start": "npm start --prefix apps/todo-be",
     "test:gui": "playwright test --project=\"gui-*\" --grep-invert @live",
     "test:gui:live": "playwright test --project=gui-chromium --grep @live --workers=1",
+    "test:api": "playwright test --project=api",
     "test:report": "playwright show-report test-output/report",
     "typecheck": "tsc"
   },

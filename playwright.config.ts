@@ -26,6 +26,12 @@ const guiBrowsers: Project[] = [
     ...(isEdgeInstalled ? [{ name: 'gui-edge', use: { ...devices['Desktop Edge'] } }] : []),
 ];
 
+/**
+ * Todo backend under test. By default the copy in `apps/todo-be` is started on port 8080 (or an already
+ * running one is reused). Setting API_BASE_URL tests a backend running elsewhere instead.
+ */
+const API_BASE_URL = process.env.API_BASE_URL ?? 'http://localhost:8080';
+
 export default defineConfig({
     testDir: './tests',
     fullyParallel: true,
@@ -47,7 +53,22 @@ export default defineConfig({
         trace: 'retain-on-failure',
         video: 'retain-on-failure',
     },
+    webServer: process.env.API_BASE_URL ? undefined : {
+        command: 'npm run api:start',
+        // GET /tasks waits 3 seconds on purpose, the completed tasks endpoint answers right away.
+        url: `${API_BASE_URL}/tasks/completed`,
+        reuseExistingServer: !isCI,
+        timeout: 30_000,
+    },
     projects: [
         ...guiBrowsers.map((project) => ({ ...project, testDir: './tests/gui' })),
+        {
+            name: 'api',
+            testDir: './tests/api',
+            use: {
+                baseURL: API_BASE_URL,
+                extraHTTPHeaders: { Accept: 'application/json' },
+            },
+        },
     ],
 });
