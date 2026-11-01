@@ -10,7 +10,7 @@ export class GoogleSearchPage {
     readonly searchInput: Locator;
     readonly results: Locator;
     readonly resultStats: Locator;
-    private readonly rejectAllCookiesButton: Locator;
+    readonly rejectAllCookiesButton: Locator;
 
     constructor(private readonly page: Page) {
         this.searchInput = page.locator('[name="q"]');

@@ -1,10 +1,8 @@
 import { expect, test } from './fixtures/fixtures.ts';
 import { stubGoogleSearchResults } from './mocks/google-search.ts';
-import { dismissIfPresent } from './support/dismiss-if-present.ts';
 import { CareerPage } from './pages/career-page.ts';
 import { MoroSystemsHomePage } from './pages/moro-systems-home-page.ts';
-
-const SEARCH_QUERY = 'morosystems';
+import { SEARCH_QUERY } from './fixtures/test-data.ts';
 
 test.describe('Google search page', () => {
     test.beforeEach(async ({ page, googleSearchPage }) => {
@@ -17,17 +15,13 @@ test.describe('Google search page', () => {
         expect(response?.status()).toBe(200);
     });
 
-    test('searches for morosystems and sends the correct search request', async ({
+    test('searches for MoroSystems and sends the correct search request', async ({
         page,
         googleSearchPage,
     }) => {
-        await test.step('Reject cookies if consent dialog appears', async () => {
-            const rejectAllButton = page.getByRole('button', {
-                name: 'Odmítnout vše',
-            });
-
-            await dismissIfPresent(rejectAllButton);
-            await expect(rejectAllButton).toBeHidden();
+        await test.step('Cookie consent dialog is closed', async () => {
+            // goTo() rejects optional cookies when Google asks for consent (it doesn't in every region)
+            await expect(googleSearchPage.rejectAllCookiesButton).toBeHidden();
         });
 
         await test.step('Check the Google search page', async () => {
