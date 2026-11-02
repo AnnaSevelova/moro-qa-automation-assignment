@@ -242,6 +242,9 @@ workflow) can be started on any branch, with a choice of what to run: a checkbox
 API tests, GUI tests, Visual tests) and the browser for the GUI tests (all of them, or one). By default a
 manual run does everything except the visual tests.
 
+All jobs run on Ubuntu 24.04, pinned instead of `ubuntu-latest`, so the system libraries and fonts the
+browsers use only change when the workflow is updated on purpose.
+
 The workflow pins action versions to exact releases, has read-only `contents` permission, takes the Node
 version from `.nvmrc`, caches npm packages and Playwright browsers, and switches off dependencies' install
 scripts (`NPM_CONFIG_IGNORE_SCRIPTS`), so the backend is installed in its own step instead of by

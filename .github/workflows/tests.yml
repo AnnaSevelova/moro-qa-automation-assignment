@@ -52,7 +52,7 @@ jobs:
   lint:
     name: Lint
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.lint }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
 
     steps:
@@ -77,7 +77,7 @@ jobs:
   typecheck:
     name: Typecheck
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.typecheck }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
 
     steps:
@@ -102,7 +102,7 @@ jobs:
   api:
     name: API tests
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.api_tests }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
 
     steps:
@@ -139,9 +139,11 @@ jobs:
           if-no-files-found: warn
 
   gui:
-    name: GUI tests (${{ matrix.project }})
+    # GitHub adds the browser project to the name ("GUI tests (gui-chromium)"). Put into the name here,
+    # it would show unfilled on a skipped job.
+    name: GUI tests
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.gui_tests }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       # Let every browser finish, so one failing browser doesn't hide the results of the others.
@@ -204,7 +206,7 @@ jobs:
   visual:
     name: Visual tests (Chromium, Firefox)
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.visual_tests }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
 
     steps:
