@@ -1,296 +1,318 @@
-# QA automation assignment
+# QA Automation Assignment | MoroSystems
 
-Automated tests for the MoroSystems automation tester assignment, written in
-[Playwright](https://playwright.dev) with TypeScript:
+Automated GUI, API, responsive and visual regression tests for the MoroSystems QA automation assignment, built with [Playwright](https://playwright.dev/) and TypeScript.
 
-- **GUI tests:** searching for MoroSystems on Google, opening the MoroSystems website, visiting
-  the "Kariéra" page and filtering open positions by city
-- **API tests:** the [todo backend](https://github.com/morosystems/todo-be) (a copy is in `apps/todo-be`):
-  creating, listing, updating, completing and deleting tasks, plus invalid requests, with the API client
-  typed from the backend's OpenAPI description
-- **Cross-browser:** the GUI tests run in Chromium, Firefox, WebKit (Safari's engine) and Microsoft Edge
-- **Responsive design:** the MoroSystems homepage and "Kariéra" page on phone, tablet, laptop and desktop sizes
-- **Visual regression:** both pages compared with baseline images
-- **Reporting and CI:** HTML report with screenshots, video and traces of failed tests; GitHub Actions runs
-  lint, type check and test API and GUI suites on every pull request
-  (Note: The Visual tests are leave out from the run on PR on purpose, as from my experience, they are better for testing e.g. on a chrone setup or after changes are made to not generate false-negative results.)
+The project covers two systems:
 
-## Requirements
-- Node.js 22.6 or newer (`.nvmrc` pins Node 22, used by CI and `nvm use`), npm 10 or newer
-- optional: Microsoft Edge for the `gui-edge` project (the other browsers come with Playwright), and Docker
-  for comparing against the committed Linux baselines of the visual tests
+- **MoroSystems website:** Search for MoroSystems, navigate to **Kariéra**, and filter job openings by city. Additional tests cover responsive layout and visual changes.
+- **[Todo API](https://github.com/morosystems/todo-be):** Create, list, update, complete and delete tasks, including negative scenarios and response validation.
 
-## Setup
-- `npm install` installs the test dependencies, then installs the backend in `apps/todo-be` from its own
-  lockfile (`npm ci`, run automatically as `postinstall`)
-- `npx playwright install` downloads the browsers used by Playwright
+GUI tests run across **Chromium, Firefox, WebKit and Microsoft Edge** (when Edge is installed). Tests are integrated with **GitHub Actions**, with HTML reports and failure artifacts.
+
+## Quick start
+
+### Prerequisites
+
+- **Node.js 22.6+** (`.nvmrc` specifies Node 22) and **npm 10+**
+- **Optional:** Microsoft Edge for Edge tests; Docker to run visual comparisons against committed Linux baselines
+
+### Install
+
+```bash
+nvm use                # If you use nvm
+npm install            # Also installs the bundled todo backend
+npx playwright install # Installs Chromium, Firefox and WebKit
+```
+
+Microsoft Edge is not bundled with Playwright. To include it, install it separately (for example, `npx playwright install msedge`). The Edge project is enabled only when Edge is available.
+
+### Run tests
+
+| Command | Purpose |
+| --- | --- |
+| `npm run test:gui` | Run the GUI suite across available browser projects (excluding live Google checks) |
+| `npm run test:api` | Run the API suite; Playwright starts the backend automatically |
+| `npm run test:visual` | Run visual comparisons with local, OS-specific baselines |
+| `npm run test:visual:docker` | Compare with the committed Linux baselines (Docker required) |
+| `npm run lint` | Check code quality |
+| `npm run typecheck` | Run TypeScript checks |
+| `npm run test:report` | Open the latest standard HTML test report |
+| `npm run test:visual:report` | Open the visual regression report |
+
+For a quick, focused GUI run:
+
+```bash
+# Firefox only
+npx playwright test --project=gui-firefox --grep-invert @live
+
+# Chromium with a visible browser
+npx playwright test --project=gui-chromium --headed --grep-invert @live
+
+# Use a different city for the career filter (default: Brno)
+PREFERRED_CITY=Praha npm run test:gui
+```
+
+> **Important:** The regular GUI suite uses a local stand-in for Google search results. The optional live Google check (`npm run test:gui:live`) is excluded from normal runs and CI because Google commonly presents CAPTCHAs to automated searches. See [Google search strategy](#google-search-strategy).
+
+## Key implementation decisions
+
+| Decision | Reason |
+| --- | --- |
+| **Stub Google search results** while checking the actual outgoing Google search request | Avoid CAPTCHA-related failures and unauthorized automated search queries, while still validating the user flow |
+| **Use `POST /tasks/{id}` for updates** | The supplied backend does not implement the PUT endpoint requested in the assignment; POST is the documented and working operation |
+| **Run visual tests separately** | Changes to the live website could create unrelated failures in routine CI runs; visual comparisons are run intentionally |
+| **Isolate API test data** | Tests can execute in parallel without depending on seeded data or one another |
+| **Generate API types from OpenAPI** | Keep the test client aligned with the documented API contract and detect contract changes in CI |
+
+## Test coverage
+
+### GUI tests (`tests/gui/`)
+
+The main user journey is:
+
+1. Open the real Google homepage and search for **MoroSystems**.
+2. Verify the outgoing request and the locally stubbed search results.
+3. Open the **real MoroSystems website**.
+4. Navigate to **Kariéra**.
+5. Filter available positions by city.
+
+| Test file | Coverage |
+| --- | --- |
+| `google-search-to-career.spec.ts` | Full journey from Google search to career filtering |
+| `google-search.spec.ts` | Google homepage, request method/query, results, first organic result, sitelinks, repeated searches, no-results scenario, and optional `@live` check |
+| `career-filter.spec.ts` | Career page navigation and city filtering starting directly on MoroSystems |
+| `responsive.spec.ts` | Homepage and career page across four viewport sizes |
+
+The GUI suite supports **Chromium (`gui-chromium`)**, **Firefox (`gui-firefox`)**, **WebKit (`gui-webkit`)** and **Edge (`gui-edge`)**. The optional live Google test runs only in Chromium.
+
+#### Responsive checks
+
+Both pages are tested in each browser at these sizes:
+
+| Device | Viewport |
+| --- | --- |
+| Phone | 375 × 812 |
+| Tablet | 768 × 1024 |
+| Laptop | 1280 × 800 |
+| Desktop | 1920 × 1080 |
+
+Instead of relying on pixel comparison, these tests verify that:
+
+- The page does not overflow horizontally; key elements fit and remain visible.
+- Navigation is collapsed under **Menu** on narrow screens and displayed directly on wider screens.
+- Users can reach **Kariéra** through the appropriate navigation and filter positions by city.
+
+Viewport definitions are in `tests/gui/fixtures/test-data.ts`.
+
+**Accessibility finding:** the MoroSystems logo link has no accessible name, because its image has no alt text. Screen readers announce it only as "link", and the tests locate it by its link target instead of its name.
+
+### API tests (`tests/api/`)
+
+The tests run against an **unchanged copy** of the [MoroSystems todo backend](https://github.com/morosystems/todo-be), commit `2cfa7c3`, stored in `apps/todo-be`. It retains its own `package-lock.json` and dependencies.
+
+| Test file | Coverage |
+| --- | --- |
+| `tasks.spec.ts` | Create tasks; validate structure, defaults, timestamps and unique IDs; special characters; list all/completed tasks; update text; complete/reopen; delete; verify PUT is unsupported |
+| `tasks-errors.spec.ts` | Missing/empty text (`422`) and unknown task IDs (`404`) |
+
+**Running the backend:**
+
+```bash
+npm run test:api                                # Starts/stops the backend automatically
+npm run api:start                               # Start it manually
+API_BASE_URL=http://host:port npm run test:api  # Test another backend
+```
+
+The default backend address is `http://localhost:8080`, with Swagger UI at `http://localhost:8080/api-docs`. Locally, a backend already running on port 8080 is reused; in CI it never is, so CI always tests a freshly started backend.
+
+API tests run in parallel against a shared backend. Each test creates and cleans up its own tasks through the `createTask` fixture; tests do not assume any particular initial task list or order. `GET /tasks` deliberately takes about three seconds, so listing tests may take longer.
+
+The backend persists data in `apps/todo-be/data/db.json`. An interrupted run can leave changes behind. Restore the file with:
+
+```bash
+git checkout -- apps/todo-be/data/db.json
+```
+
+### Visual regression tests (`tests/visual/`)
+
+Full-page screenshots of the MoroSystems homepage and **Kariéra** page are compared against baseline images. The screenshot comparison allows `threshold: 0.2` per pixel, with no more than **1% of pixels differing**.
+
+To reduce noise from unrelated live-content changes, the screenshot helper (`tests/visual/support/stable-page.ts`):
+
+- Loads HTML, CSS, fonts and images without running page scripts.
+- Disables animations, transitions and scrollbars.
+- Hides photographs and CSS background images.
+- Removes changing sections (open positions, latest articles and team carousel) from the layout.
+
+The remaining layout, navigation, text, filter and footer are compared. Hiding background images also removes some decorative elements, including the yellow box behind the **Kariéra** heading; this is an intentional trade-off.
+
+**Visual test commands:**
+
+| Command | Purpose |
+| --- | --- |
+| `npm run test:visual` | Compare using local platform baselines |
+| `npm run test:visual:update` | Update local baselines |
+| `npm run test:visual:docker` | Compare against committed Linux baselines |
+| `npm run test:visual:docker:update` | Regenerate Linux baselines |
+| `npm run test:visual:report` | Inspect expected, actual and diff images |
+
+Local screenshots can differ between macOS, Windows and Linux because of font rendering. Baselines are kept separately in `tests/visual/visual.spec.ts-snapshots/<platform>/`, named `<host>-<page>-<project>.png`. **Only Linux baselines are committed.** A missing baseline is created on first use but the test fails, preventing unnoticed acceptance.
+
+The Docker comparison uses an image matching the installed Playwright version and `linux/amd64` architecture, consistent with GitHub Actions. The Docker suite runs **Chromium and Firefox**; WebKit is excluded there because it produces broken screenshots on Linux. Emulation can make Docker runs slower on Apple Silicon.
+
+**Visual tests are manual-only in CI.** This prevents changes to the live MoroSystems website from blocking unrelated pull requests. Update baselines only after reviewing the resulting images.
+
+## Google search strategy
+
+The assignment includes finding MoroSystems through Google. In automated runs, however, Google frequently serves a CAPTCHA rather than search results, including in headed browsers. Automated Google search queries without permission are restricted by [Google's spam policies](https://developers.google.com/search/docs/essentials/spam-policies#machine-generated-traffic).
+
+The test therefore verifies the **search interaction on the real Google homepage** while intercepting the results request:
+
+- **Real:** Open Google, handle consent, enter the query and submit the form. Verify the outbound request's method, host and query parameter.
+- **Stubbed:** Intercept the search request before it reaches Google and respond with a local results page (`tests/gui/mocks/google-search.ts`). Search suggestions are intercepted too.
+- **Real again:** Follow the MoroSystems result to the live company website and complete the career-filtering journey.
+
+The stub includes a search input, tabs, sponsored result, organic results, sitelinks, result count, no-results state and follow-up searches. The HTML template and query-specific results are in `tests/gui/mocks/`; add queries to `google-search-data.ts` to expand coverage. Unknown queries return the no-results state. The suggestion endpoint (`GET /complete/s?q=...`) returns an empty list with the expected response prefix, so partially typed queries do not reach Google either.
+
+### What was verified against real Google?
+
+The stub was compared with a manual search for **MoroSystems** in November 2026:
+
+- Form submission uses `GET https://www.google.com/search` and the `q` parameter. Transient parameters such as `ei`, `sxsrf` and `ved` are deliberately not asserted.
+- Test-relevant structure matches: search field (combobox labelled **Najít**), `#search` result container, result links with `<h3>` titles and displayed URLs.
+- The MoroSystems result appears first among organic results, with sitelinks for **Kariéra**, **O nás**, **Kontakt** and **Naše řešení**.
+- A sponsored **MoroSystems Orchestra** result appears separately above the organic results; a test verifies it is not treated as the first organic result.
+- Result order, titles and URLs follow the observed search. Snippets and counts are fixtures; the knowledge panel is intentionally omitted.
+- Result assertions use the displayed URL instead of the anchor `href`, because Google may use redirects for signed-out sessions.
+
+### Optional live verification
+
+```bash
+npm run test:gui:live
+```
+
+This `@live` test queries real Google results and checks that MoroSystems appears. It runs **manually, in Chromium only**, and is excluded from default runs and CI. It can fail when Google displays a CAPTCHA; the failure explicitly reports that live results could not be verified. The project does not attempt CAPTCHA bypasses, fingerprint spoofing, proxies or solving services.
+
+## API contract decisions and findings
+
+### Why updates use POST, not PUT
+
+Although the assignment requests PUT for updates, the supplied backend exposes **`POST /tasks/{id}`** for editing task text. Its OpenAPI description (`/v3/api-docs`) lists POST and DELETE for this route, not PUT.
+
+The suite therefore:
+
+1. Uses the supported POST endpoint for successful updates.
+2. Checks that the OpenAPI document does not declare PUT for this route.
+3. Verifies that PUT returns `404 Cannot PUT /tasks/{id}` without changing the task.
+
+If PUT is implemented later, the explicit negative check will fail and signal that the update tests should be revisited.
+
+### Findings in the supplied application
+
+| Finding | Test approach |
+| --- | --- |
+| A numeric `text` value (`{"text":123}`) is accepted even though task text should be a string | Marked with Playwright `test.fail()` as a known issue; an unexpected pass highlights a potential fix |
+| Unknown IDs are documented as returning `400`, but the backend returns `404` | Assert the observed `404`; documentation needs correction |
+| Task-list endpoints use a one-argument `sort()` callback that does not sort by date | Do not assert undocumented ordering |
+| OpenAPI describes `422` errors as JSON, but actual responses are plain text with `text/html` | Assert the real response and content type |
+
+### OpenAPI-generated types
+
+The API client uses [openapi-typescript](https://openapi-ts.dev/) to generate types from `/v3/api-docs`:
+
+```bash
+npm run api:generate
+```
+
+This saves `tests/api/generated/openapi.json` and produces `tests/api/generated/openapi-types.ts`. Both are committed. The client's `Task` type and successful-response (`*Ok`) helpers use these definitions; raw client methods can still send invalid bodies for negative tests. CI regenerates the files and fails if they do not match the committed contract.
+
+The generated types reflect **the published specification**, including its documented discrepancies, while negative tests assert the **actual API responses**. Generated files are excluded from linting.
+
+The project uses TypeScript 6.0. Because `openapi-typescript` declares TypeScript 5 as a peer dependency, `package.json` includes an override allowing it to use the project's compiler for code printing.
+
+## CI and reports
+
+The workflow is defined in `.github/workflows/tests.yml`.
+
+| Trigger | Checks |
+| --- | --- |
+| Push to `main` | Lint, typecheck, API types, API tests and GUI tests |
+| Pull request | Same checks as a push to `main` |
+| Manual workflow dispatch | Select individual jobs and GUI browsers; optionally include visual tests |
+
+A manual run is available under **GitHub Actions → Tests → Run workflow**. All jobs except visual tests are selected by default. **Live Google checks never run in CI.**
+
+Additional CI details:
+
+- Uses **Ubuntu 24.04** and Node from `.nvmrc`.
+- Runs lint, typecheck, API contract verification and API tests as separate jobs.
+- Executes GUI projects independently, so failure in one browser does not cancel the others.
+- Pins action versions, uses read-only `contents` permissions and caches npm packages and Playwright browsers.
+- Disables dependency install scripts in CI; the backend is installed explicitly from its own lockfile.
+- Retries failed GUI and API tests up to twice; passing on retry is reported as **flaky**. Visual tests are never retried, because a visual difference is a result, not flakiness.
+- Uploads test artifacts after every run, including successful runs; artifacts are retained for **7 days**.
+
+### View results
+
+```bash
+npm run test:report         # Regular GUI/API report
+npm run test:visual:report  # Visual report with screenshot diffs
+```
+
+Generated output is gitignored and stored under `test-output/`:
+
+- `report/` and `results/`: standard HTML report, screenshots, video and traces of failures.
+- `visual-report/` and `visual-results/`: visual test report and expected/actual/diff screenshots.
+
+CI artifacts are named `report-api`, `report-gui-<browser>` or `report-visual`. Download and extract an artifact, then open the report with:
+
+```bash
+npx playwright show-report <folder>/report
+```
 
 ## Project structure
-```
+
+```text
 apps/
-  todo-be/         system under test: unchanged copy of the todo backend
+  todo-be/                       Unchanged backend under test
+
 tests/
   gui/
-    *.spec.ts      test scenarios
-    pages/         page objects (Google, MoroSystems homepage, career page)
-    fixtures/      Playwright fixtures and test data
-    mocks/         stand-in for the Google search results page
-    support/       shared helpers and assertions (career, layout)
+    *.spec.ts                    GUI scenarios
+    pages/                       Page objects
+    fixtures/                    Fixtures and test data
+    mocks/                       Stubbed Google search results
+    support/                     Shared assertions and helpers
   api/
-    *.spec.ts      test scenarios
-    clients/       API client for the todo backend (the API counterpart of pages/)
-    generated/     OpenAPI description of the backend and TypeScript types generated from it
-    fixtures/      Playwright fixtures (tasks cleaned up after each test) and test data
-    support/       shared assertions
+    *.spec.ts                    API scenarios
+    clients/                     Typed API client
+    generated/                   OpenAPI document and TypeScript types
+    fixtures/                    Test data and cleanup
+    support/                     Shared assertions
   visual/
-    visual.spec.ts visual regression test
-    pages.ts       compared pages and their sections that are left out
-    support/       helper that makes a live page look the same on every run
-    visual.spec.ts-snapshots/linux/   committed baseline images
-scripts/           visual tests in Docker, generating the API types
-test-output/       generated by test runs: HTML report, screenshots, video, traces (gitignored)
-.github/workflows/ CI pipelines (GitHub Actions)
-playwright.config.ts
-playwright.visual.config.ts
-eslint.config.mjs
+    visual.spec.ts               Screenshot comparisons
+    pages.ts                     Pages and excluded sections
+    support/                     Screenshot stabilization
+    visual.spec.ts-snapshots/    Platform-specific baselines
+
+scripts/                         Docker visual tooling and API type generation
+test-output/                     Generated reports and artifacts (gitignored)
+.github/workflows/               GitHub Actions
+playwright.config.ts             GUI/API Playwright configuration
+playwright.visual.config.ts      Separate visual test configuration
+eslint.config.mjs                Lint rules
 ```
 
-## GUI tests
-- `npm run test:gui` runs the GUI tests in every browser (without the `@live` test, see below)
-- `npx playwright test --project=gui-firefox --grep-invert @live` runs them in one browser only
-- `npx playwright test --project=gui-chromium --headed --grep-invert @live` runs them with a visible browser
-- `PREFERRED_CITY=Praha npm run test:gui` filters open positions by a different city (default `Brno`)
-- `npm run test:gui:live` runs only the live Google results check, use it occasionally (see below)
+## Development and maintenance
 
-Browsers: every GUI test runs in Chromium (`gui-chromium`), Firefox (`gui-firefox`), WebKit, the engine of
-Safari (`gui-webkit`), and Microsoft Edge (`gui-edge`). `npx playwright install` downloads the first three. Edge
-is not bundled with Playwright, so `gui-edge` is added only when Edge is installed on the machine (it can be
-installed with `npx playwright install msedge`). The `@live` check runs in Chromium only, so it sends a single
-query to Google.
+The codebase uses strict TypeScript checks and ESLint, including `typescript-eslint`, stylistic rules and `eslint-plugin-playwright`. Formatting conventions are **single quotes, semicolons and four-space indentation**. The bundled backend in `apps/` is excluded from linting.
 
-Scenarios (`tests/gui`):
-- `google-search-to-career.spec.ts`: the whole scenario. Searches "MoroSystems" on Google, validates the
-  results and the MoroSystems link, opens the website, goes to "Kariéra" and filters open positions by city
-- `career-filter.spec.ts`: the MoroSystems part of the scenario, starting directly on the website
-- `google-search.spec.ts`: the Google part in detail. Checks the Google homepage, the outgoing search request
-  (method, query), the search results (result count, first result, sitelinks, "no results" for an unknown
-  query, searching again), plus the `@live` check against real Google results
-- `responsive.spec.ts`: the responsive design check (see below)
+```bash
+npm run lint
+npm run lint:fix
+npm run typecheck
+```
 
-**Responsive design check.** The homepage and the "Kariéra" page are checked on four screen sizes: phone
-(375×812), tablet (768×1024), laptop (1280×800) and desktop (1920×1080), in every browser. "Displays
-correctly" is checked by what a user relies on, not by pixel comparison:
-- the page doesn't scroll sideways, and the logo, main heading, "Koho hledáme" heading and city filter are
-  visible and fit the screen width
-- the navigation adapts: on phone and tablet it is collapsed behind a "Menu" button, on wider screens it is
-  shown directly
-- "Kariéra" is reached through the navigation as a user would (via "Menu" on narrow screens), and filtering
-  positions by city works and still fits the screen
+Before opening a pull request, run lint, typecheck and the relevant tests. Use a topic branch such as `feature/...`, `fix/...` or `refactor/...`, with commits following `type(scope): summary` (for example, `test(gui): add responsive design check`). Changes are merged into `main` through passing pull requests with merge commits.
 
-The screen sizes are in `fixtures/test-data.ts`. A finding along the way: the logo link has no accessible
-name (its image has no alt text), so screen readers announce it only as "link".
-
-## Why the Google search results are stubbed
-**Short version:** Google does not allow automated searches, so the tests check everything up to and
-including the outgoing search request against the real Google, and use a local copy of the results page.
-
-**The problem.** When a test searches on Google, Google usually shows a CAPTCHA ("I'm not a robot") page
-instead of the results. This is intentional: Google's
-[spam policies](https://developers.google.com/search/docs/essentials/spam-policies#machine-generated-traffic)
-say that *"sending automated queries to Google"* without permission violates them and the Google Terms
-of Service, and the CAPTCHA is how Google enforces it. It also happens in a real Chrome browser and with a
-visible window, and how often it appears depends on the network. Google's official search API
-(Custom Search JSON API) is closed to new users and will be shut down on 1 January 2027.
-
-**What we deliberately don't do.** The tests don't try to get around the CAPTCHA (no fake browser
-fingerprints, reused cookies, proxies or CAPTCHA-solving services). That would break Google's rules, and the
-tests would be unreliable: passing on one day or network and failing on another.
-
-**What we do instead.** The goal of the GUI tests is to verify the *user flow*, not Google's search engine:
-- **Real Google:** opening the homepage, rejecting cookies, checking the page, typing the query and
-  submitting it. The outgoing search request is captured and checked (method, host, query).
-- **Stubbed:** the search request never reaches Google. `tests/gui/mocks/google-search.ts` answers it with
-  a stand-in results page that looks and behaves like Google's (search box, result tabs, a sponsored result
-  above the results, results with sitelinks, the result count hidden as on Google, "no results" message,
-  Enter submits a new search). The page is built from `google-search-results.html` and the results come
-  from `google-search-data.ts`, keyed by query. To support a new query, add it to `google-search-data.ts`;
-  any other query gets the "no results" page.
-- **Search suggestions are stubbed too.** While the user types, Google's page requests suggestions
-  (`GET /complete/s?q=...`, JSON behind a `)]}'` prefix). The stub answers them with an empty list, so not
-  even a partly typed query reaches Google.
-
-**How close the stand-in is to real Google.** It was compared with a real search for "MoroSystems", done
-manually in a browser (November 2026):
-- the search request matches: `GET https://www.google.com/search` with `q`, sent from the homepage form.
-  Google also sends session parameters (`ei`, `sxsrf`, `ved`, ...), which change on every visit, so the
-  tests don't check them
-- the parts the tests rely on match: the search box (a textarea with role combobox, labelled "Najít"), the
-  `#search` container, results as links with an `<h3>` title and displayed URL, the company website as
-  the first result with sitelinks Kariéra, O nás, Kontakt and Naše řešení
-- titles, URLs and order of the results follow the real ones. The snippets and the result count are test
-  data, and the knowledge panel ("MoroSystems Brno") on the right is left out
-- Google shows a sponsored result ("MoroSystems Orchestra") above the results, outside `#search`. The
-  stand-in has it too, and a test checks that it isn't mistaken for the first search result
-- when signed in, the result links go straight to the website. Otherwise Google may link through a
-  redirect, so the tests check the displayed URL of a result rather than its `href`
-- **Real MoroSystems website:** clicking the result, the homepage, "Kariéra" and the city filter.
-
-This keeps the default run reliable, fast and free of automated queries to Google Search.
-
-**The live check (`@live`).** `npm run test:gui:live` checks that MoroSystems really appears in Google's
-live results. It is excluded from the default run and meant to be run only occasionally and manually (not
-in CI). On most networks Google will answer with a CAPTCHA, and the test then fails with a clear message
-saying the live results could not be verified.
-
-## API tests
-The API tests run against the [todo backend](https://github.com/morosystems/todo-be). An exact copy of it
-(commit `2cfa7c3`, no file changed, including its `package-lock.json`) is in `apps/todo-be`. It keeps its own
-dependencies, installed from its own lockfile, so the tests run against the same versions as upstream.
-- `npm run test:api` runs the API tests. Playwright starts the backend on `http://localhost:8080` and stops it
-  afterwards (a backend already running there is reused)
-- `npm run api:start` starts the backend on its own, Swagger docs are then at `http://localhost:8080/api-docs`
-- `API_BASE_URL=http://host:port npm run test:api` runs the tests against a backend running elsewhere
-
-The backend stores tasks in `apps/todo-be/data/db.json`. Tests delete the tasks they create, but the file can
-still change (e.g. the order of tasks, or leftovers after an interrupted run).
-`git checkout apps/todo-be/data/db.json` restores the original data.
-
-Scenarios (`tests/api`):
-- `tasks.spec.ts`: creating a task (shape, default values, timestamps, unique ids, special characters),
-  listing all and completed tasks, updating text (and that PUT is not supported, see below), completing and
-  marking incomplete, deleting
-- `tasks-errors.spec.ts`: missing or empty text (422), unknown task id (404) for every endpoint that takes one
-
-**Updating a task: POST instead of PUT.** The assignment asks to update a task with a PUT request, but the
-backend has no PUT endpoint. It updates a task's text with `POST /tasks/{id}`, which is how its Swagger docs
-describe it too. The tests therefore update tasks with POST, and two more tests make the difference explicit:
-- the Swagger docs (`/v3/api-docs`) list only POST and DELETE for `/tasks/{id}`
-- a PUT request to `/tasks/{id}` returns `404 Cannot PUT /tasks/{id}` and leaves the task unchanged
-
-If the backend adds PUT later, the second test fails and points to the update tests that should switch to it.
-
-All tests share one backend and run in parallel, so each test creates its own tasks and deletes them
-afterwards (`createTask` fixture). Tests never depend on the seed data or on the exact list of tasks.
-`GET /tasks` is slow on purpose (about 3 seconds), so tests that list all tasks take a few seconds.
-
-Findings in the backend:
-- Text is only checked for being present, not for its type: `{ "text": 123 }` creates a task. The test for
-  this is marked with `test.fail()`, so it passes while the bug exists and fails once it is fixed.
-- The Swagger docs say an unknown task id returns `400`, but the backend returns `404`. `404` is the right
-  status, so the tests expect `404` and the docs should be fixed.
-- `GET /tasks` and `GET /tasks/completed` call `sort()` with a one-argument callback, which does not sort the
-  tasks by date. The docs don't promise any order, so the tests don't check it.
-- The OpenAPI description says error responses (`422`) are JSON, but the backend sends plain text as
-  `text/html`. The tests check the actual responses.
-
-**Generated API types.** The API client's types are generated from the OpenAPI description the backend
-publishes at `/v3/api-docs`, with [openapi-typescript](https://openapi-ts.dev):
-- `npm run api:generate` starts the backend (or uses one already running), saves the description as
-  `tests/api/generated/openapi.json` and generates `tests/api/generated/openapi-types.ts` from it. Both files
-  are committed, so changes to the API show up in reviews; the generated code is not linted
-- the client's `Task` type and the results of its `*Ok` helpers come from these types: each helper returns
-  the body of its endpoint's `200` response as the API describes it. If the API changes, regenerating the
-  types makes the type check fail wherever tests rely on the old shape
-- the raw client methods still accept any body, so tests can send invalid ones
-- CI regenerates the types and fails if they differ from the committed ones ("API types up to date")
-- the generated types inherit the description's gaps listed above (`400` instead of `404`, JSON errors), so
-  error responses are checked against the real behavior, not against the types
-
-`openapi-typescript` declares TypeScript 5 as its peer dependency, while the project uses 6.0. An `overrides`
-entry in `package.json` lets it use the project's TypeScript; it only uses the compiler's code printer.
-
-## Visual tests
-The homepage and the "Kariéra" page of the MoroSystems website are compared with baseline images: full-page
-screenshots in Chromium, Firefox and WebKit, with a small tolerance (`threshold` 0.2 per pixel, at most 1 %
-of pixels different). They have their own config, `playwright.visual.config.ts`, because they need neither
-the todo backend nor the GUI projects.
-
-**Making a live page comparable.** The website changes independently of this repository, so before the
-screenshot (`tests/visual/support/stable-page.ts`):
-- only HTML, CSS, fonts and images load, no scripts (so no cookie banner, tracking or carousels moving)
-- animations, transitions and scrollbars are switched off
-- photos and CSS background images are hidden, since they change and are slow to load. This also hides
-  design elements drawn as background images, such as the yellow box behind the "Kariéra" heading
-- sections whose content changes are removed from the layout, so they change neither the image nor the page
-  height: open positions, latest articles and the team carousel (`tests/visual/pages.ts`)
-
-Everything else is compared: layout, navigation, texts, the city filter, footer. When the website changes
-on purpose, the baselines have to be updated.
-
-**Baselines per platform.** macOS and Linux render fonts differently, so baselines are kept per platform in
-`tests/visual/visual.spec.ts-snapshots/<platform>/`, named `<host>-<page>-<project>.png`. Only the Linux
-ones are committed, because CI compares on Linux; macOS and Windows ones are gitignored. A missing baseline
-is written on the first run and the test fails, so a new baseline is never accepted unnoticed.
-
-**Commands:**
-- `npm run test:visual` compares locally (creates local macOS baselines on the first run)
-- `npm run test:visual:update` updates the local baselines
-- `npm run test:visual:docker` compares against the committed Linux baselines in Playwright's Linux Docker
-  image, exactly like CI (Chromium and Firefox; WebKit renders broken screenshots on Linux). Needs Docker
-- `npm run test:visual:docker:update` regenerates the Linux baselines; review the images before committing
-- `npm run test:visual:report` opens the report with the expected, actual and diff images
-
-The Docker script uses the image matching the installed `@playwright/test` version, as `linux/amd64` like
-GitHub's runners, so baselines generated on an Apple Silicon Mac match CI (emulated there, so slower).
-
-**In CI** the visual tests are a job of the main workflow, `.github/workflows/tests.yml`, that runs only
-when the workflow is started manually (Actions → Tests → Run workflow). They don't run on pushes and pull
-requests: a change on the live website would otherwise block unrelated changes here.
-
-## Reports
-- `npm run test:report` opens the HTML report from the last run
-- everything a run generates goes to `test-output` (gitignored): the HTML report in `test-output/report`,
-  screenshots, video and trace of failed tests in `test-output/results`
-- the visual tests have their own: `npm run test:visual:report` opens `test-output/visual-report`, with the
-  expected, actual and diff images of failed comparisons in `test-output/visual-results`
-
-## Code quality
-- `npm run lint` runs ESLint and fails on any error or warning, `npm run lint:fix` fixes what it can
-- `npm run typecheck` runs the TypeScript compiler (strict mode, no output)
-
-The ESLint rules (`eslint.config.mjs`) are JavaScript and typescript-eslint recommended and stylistic
-rules, and `eslint-plugin-playwright` for the tests (no conditionals or missing assertions in tests, awaited
-Playwright calls, and so on). The code style (single quotes, semicolons, 4 spaces) is enforced with
-`@stylistic` rules. The tested backend in `apps/` is not linted.
-
-TypeScript is 6.0: typescript-eslint supports TypeScript up to 6.0, and TypeScript 7 (the native compiler)
-no longer has the JavaScript API it relies on.
-
-## CI
-`.github/workflows/tests.yml` runs on every push to `main`, on pull requests and manually (GitHub Actions,
-"Run workflow"):
-- **Lint** and **Typecheck:** a job each, so they show up as separate checks on a pull request
-- **API types up to date:** regenerates the API types from the backend and fails if they differ from the
-  committed ones
-- **API tests:** the backend in `apps/todo-be` is installed from its own lockfile, and Playwright starts it
-  on port 8080 before the tests and stops it afterwards
-- **GUI tests:** one job per browser project (`gui-chromium`, `gui-firefox`, `gui-webkit`, `gui-edge`),
-  running in parallel. A failure in one browser doesn't stop the others. The `@live` Google check is never
-  run in CI.
-- **Visual tests:** only on manual runs (see "Visual tests" above)
-
-Pushes and pull requests run all jobs except the visual tests. A manual run (Actions → Tests → Run
-workflow) can be started on any branch, with a choice of what to run: a checkbox per job (Lint, Typecheck,
-API types up to date, API tests, GUI tests, Visual tests) and the browser for the GUI tests (all of them, or
-one). By default a manual run does everything except the visual tests.
-
-All jobs run on Ubuntu 24.04, pinned instead of `ubuntu-latest`, so the system libraries and fonts the
-browsers use only change when the workflow is updated on purpose.
-
-The workflow pins action versions to exact releases, has read-only `contents` permission, takes the Node
-version from `.nvmrc`, caches npm packages and Playwright browsers, and switches off dependencies' install
-scripts (`NPM_CONFIG_IGNORE_SCRIPTS`), so the backend is installed in its own step instead of by
-`postinstall`. Every job uploads its `test-output` folder (HTML report, plus screenshots, video and trace of
-failed tests) after every run, not only on failure, because the report is the record of the test results.
-The artifacts are named `report-api` or `report-gui-<browser>` and kept for 7 days. To view a report,
-download the artifact, unzip it and run `npx playwright show-report <folder>/report`. In CI, failed tests
-are retried up to twice, so a test that passes on a retry is reported as flaky instead of failed.
-
-## Contributing
-- Work on a branch (`feature/…`, `fix/…`, `refactor/…`), with one commit per topic. Commit messages follow
-  `type(scope): summary`, e.g. `test(gui): add responsive design check`, with types such as `feat`, `fix`,
-  `test`, `refactor`, `ci`, `docs`, `build` and `chore`, and a body explaining why.
-- Before pushing, run `npm run lint`, `npm run typecheck` and the tests the change affects.
-- Changes reach `main` only through pull requests whose CI checks pass, merged with a merge commit, so each
-  branch stays visible as one unit of work in the history.
-- After changing the backend's API, run `npm run api:generate` and commit the regenerated types.
+After changing the API contract, regenerate and commit the OpenAPI files using `npm run api:generate`. After intentional visual changes, update and **review** the relevant baselines before committing them.
