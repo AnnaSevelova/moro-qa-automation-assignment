@@ -125,7 +125,7 @@ API_BASE_URL=http://host:port npm run test:api  # Test another backend
 
 The default backend address is `http://localhost:8080`, with Swagger UI at `http://localhost:8080/api-docs`. Locally, a backend already running on port 8080 is reused; in CI it never is, so CI always tests a freshly started backend.
 
-API tests run in parallel against a shared backend. Each test creates and cleans up its own tasks through the `createTask` fixture; tests do not assume any particular initial task list or order. `GET /tasks` deliberately takes about three seconds, so listing tests may take longer.
+API tests run in parallel against a shared backend. Each test creates and cleans up its own tasks through the `createTask` fixture; tests do not assume any particular initial task list or order. Cleanup attempts every registered task and fails on responses other than 200 or 404. `GET /tasks` deliberately takes about three seconds, so listing tests may take longer.
 
 The backend persists data in `apps/todo-be/data/db.json`. An interrupted run can leave changes behind. Restore the file with:
 
