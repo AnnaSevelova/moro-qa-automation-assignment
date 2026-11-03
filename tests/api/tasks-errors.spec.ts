@@ -15,6 +15,7 @@ test.describe('Tasks API errors', () => {
             const response = await todoApi.create(body);
 
             expect(response.status()).toBe(422);
+            expect(response.headers()['content-type']).toContain('text/html');
             expect(await response.text()).toBe('\'text\' field must be present in json');
         });
     }
@@ -25,6 +26,7 @@ test.describe('Tasks API errors', () => {
         const response = await todoApi.updateText(task.id, {});
 
         expect(response.status()).toBe(422);
+        expect(response.headers()['content-type']).toContain('text/html');
         expect(await response.text()).toBe('\'text\' field must be present in json');
         const listed = (await todoApi.getAllOk()).find((item) => item.id === task.id);
         expect(listed?.text).toBe(task.text);

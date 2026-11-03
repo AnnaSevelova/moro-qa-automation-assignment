@@ -19,7 +19,9 @@ IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-noble"
 
 UPDATE_FLAG=""
 if [[ "${1:-}" == "--update" ]]; then
-  UPDATE_FLAG="--update-snapshots"
+  # "all" rewrites every baseline; the default only rewrites those that differ beyond the tolerance,
+  # which would keep small leftovers (e.g. a removed overlay) in the baselines
+  UPDATE_FLAG="--update-snapshots=all"
   shift
 fi
 

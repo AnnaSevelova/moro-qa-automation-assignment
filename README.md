@@ -79,7 +79,7 @@ The main user journey is:
 | Test file | Coverage |
 | --- | --- |
 | `google-search-to-career.spec.ts` | Full journey from Google search to career filtering |
-| `google-search.spec.ts` | Google homepage, request method/query, results, first organic result, sitelinks, repeated searches, no-results scenario, and optional `@live` check |
+| `google-search.spec.ts` | Google homepage, outgoing request method/query, stubbed result, and optional `@live` results check |
 | `career-filter.spec.ts` | Career page navigation and city filtering starting directly on MoroSystems |
 | `responsive.spec.ts` | Homepage and career page across four viewport sizes |
 
@@ -125,7 +125,7 @@ API_BASE_URL=http://host:port npm run test:api  # Test another backend
 
 The default backend address is `http://localhost:8080`, with Swagger UI at `http://localhost:8080/api-docs`. Locally, a backend already running on port 8080 is reused; in CI it never is, so CI always tests a freshly started backend.
 
-API tests run in parallel against a shared backend. Each test creates and cleans up its own tasks through the `createTask` fixture; tests do not assume any particular initial task list or order. `GET /tasks` deliberately takes about three seconds, so listing tests may take longer.
+API tests run in parallel against a shared backend. Each test creates and cleans up its own tasks through the `createTask` fixture; tests do not assume any particular initial task list or order. Cleanup attempts every registered task and fails on responses other than 200 or 404. `GET /tasks` deliberately takes about three seconds, so listing tests may take longer.
 
 The backend persists data in `apps/todo-be/data/db.json`. An interrupted run can leave changes behind. Restore the file with:
 
@@ -137,14 +137,13 @@ git checkout -- apps/todo-be/data/db.json
 
 Full-page screenshots of the MoroSystems homepage and **Kariéra** page are compared against baseline images. The screenshot comparison allows `threshold: 0.2` per pixel, with no more than **1% of pixels differing**.
 
-To reduce noise from unrelated live-content changes, the screenshot helper (`tests/visual/support/stable-page.ts`):
+The screenshot helper (`tests/visual/support/stable-page.ts`) renders the pages as users see them, with scripts, photos and background images, and makes them comparable between runs:
 
-- Loads HTML, CSS, fonts and images without running page scripts.
-- Disables animations, transitions and scrollbars.
-- Hides photographs and CSS background images.
-- Removes changing sections (open positions, latest articles and team carousel) from the layout.
+- Rejects optional cookies and disables animations and transitions.
+- Scrolls through the page so lazy-loaded images load, then waits for fonts and images.
+- Removes sections whose content changes (open positions, latest articles and the team carousel) from the layout, so new job openings or articles change neither the screenshot nor the page height.
 
-The remaining layout, navigation, text, filter and footer are compared. Hiding background images also removes some decorative elements, including the yellow box behind the **Kariéra** heading; this is an intentional trade-off.
+Everything else is compared, including photos and decorative background images. A change to the website's content or images outside the removed sections still causes a difference to review: either a regression, or a reason to update the baselines.
 
 **Visual test commands:**
 
@@ -172,7 +171,15 @@ The test therefore verifies the **search interaction on the real Google homepage
 - **Stubbed:** Intercept the search request before it reaches Google and respond with a local results page (`tests/gui/mocks/google-search.ts`). Search suggestions are intercepted too.
 - **Real again:** Follow the MoroSystems result to the live company website and complete the career-filtering journey.
 
-The stub includes a search input, tabs, sponsored result, organic results, sitelinks, result count, no-results state and follow-up searches. The HTML template and query-specific results are in `tests/gui/mocks/`; add queries to `google-search-data.ts` to expand coverage. Unknown queries return the no-results state. The suggestion endpoint (`GET /complete/s?q=...`) returns an empty list with the expected response prefix, so partially typed queries do not reach Google either.
+The stub includes a search input, tabs, sponsored result, organic results, sitelinks, result count, no-results state and follow-up searches. The HTML template and query-specific results are in `tests/gui/mocks/`; query fixtures are defined in `google-search-data.ts`. Unknown queries return the no-results state. The suggestion endpoint (`GET /complete/s?q=...`) returns an empty list with the expected response prefix, so partially typed queries do not reach Google either.
+
+### Coverage boundary
+
+For ongoing monitoring of MoroSystems' visibility in Google results, I would propose setting up **Google Search Console** with access to the verified site property. Its [search performance reports](https://support.google.com/webmasters/answer/10268906?hl=en) track impressions, clicks, CTR and average position over time. I would use this for search visibility monitoring and Playwright for checking user journeys; Search Console does not validate the browser interaction itself.
+
+The normal suite does not verify Google's actual results, ranking, advertisements, sitelinks or no-results behavior. The Google results portion of the assignment is only partially automated: the submitted search request is real, but its response is a local fixture. Tests of fixture-only ranking and no-results behavior are intentionally omitted.
+
+The optional live check starts directly at the results URL and checks that MoroSystems appears; it does not cover the complete journey from the Google homepage to career filtering. The mocked full journey and the live check provide separate evidence and are not equivalent to a fully live end-to-end test.
 
 ### What was verified against real Google?
 
@@ -181,7 +188,7 @@ The stub was compared with a manual search for **MoroSystems** in November 2026:
 - Form submission uses `GET https://www.google.com/search` and the `q` parameter. Transient parameters such as `ei`, `sxsrf` and `ved` are deliberately not asserted.
 - Test-relevant structure matches: search field (combobox labelled **Najít**), `#search` result container, result links with `<h3>` titles and displayed URLs.
 - The MoroSystems result appears first among organic results, with sitelinks for **Kariéra**, **O nás**, **Kontakt** and **Naše řešení**.
-- A sponsored **MoroSystems Orchestra** result appears separately above the organic results; a test verifies it is not treated as the first organic result.
+- A sponsored **MoroSystems Orchestra** result appears separately above the organic results; the fixture keeps it outside the organic-results container.
 - Result order, titles and URLs follow the observed search. Snippets and counts are fixtures; the knowledge panel is intentionally omitted.
 - Result assertions use the displayed URL instead of the anchor `href`, because Google may use redirects for signed-out sessions.
 
@@ -224,7 +231,7 @@ The API client uses [openapi-typescript](https://openapi-ts.dev/) to generate ty
 npm run api:generate
 ```
 
-This saves `tests/api/generated/openapi.json` and produces `tests/api/generated/openapi-types.ts`. Both are committed. The client's `Task` type and successful-response (`*Ok`) helpers use these definitions; raw client methods can still send invalid bodies for negative tests. CI regenerates the files and fails if they do not match the committed contract.
+This saves `tests/api/generated/openapi.json` and produces `tests/api/generated/openapi-types.ts`. Both are committed. This generates API types, not a connector: the HTTP client is handwritten, so the optional connector-codegen challenge is only partially implemented. The client's `Task` type and successful-response (`*Ok`) helpers use these definitions; raw client methods can still send invalid bodies for negative tests. CI regenerates the files and fails if they do not match the committed contract.
 
 The generated types reflect **the published specification**, including its documented discrepancies, while negative tests assert the **actual API responses**. Generated files are excluded from linting.
 

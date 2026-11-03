@@ -1,4 +1,4 @@
-import { test as base } from '@playwright/test';
+import { expect, test as base } from '@playwright/test';
 
 import { TodoApi, type Task } from '../clients/todo-api.ts';
 import { uniqueText } from './test-data.ts';
@@ -22,8 +22,13 @@ export const test = base.extend<ApiFixtures>({
         });
 
         // Tests may delete their tasks themselves, so a 404 here is fine.
-        for (const id of createdIds) {
-            await todoApi.delete(id);
+        const results = await Promise.allSettled(createdIds.map(async (id) => {
+            const response = await todoApi.delete(id);
+            expect([200, 404], `Cleanup of task ${id}: ${await response.text()}`).toContain(response.status());
+        }));
+        const failures = results.filter((result) => result.status === 'rejected');
+        if (failures.length > 0) {
+            throw new AggregateError(failures.map((result) => result.reason), 'Task cleanup failed');
         }
     },
 });
