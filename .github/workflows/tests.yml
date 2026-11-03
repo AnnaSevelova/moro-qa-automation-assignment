@@ -4,7 +4,35 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Started manually (Actions > Tests > Run workflow) on any branch, with a choice of checks.
+  # Pushes and pull requests always run everything except the visual tests.
   workflow_dispatch:
+    inputs:
+      lint:
+        description: Lint
+        type: boolean
+        default: true
+      typecheck:
+        description: Typecheck
+        type: boolean
+        default: true
+      api_tests:
+        description: API tests
+        type: boolean
+        default: true
+      gui_tests:
+        description: GUI tests
+        type: boolean
+        default: true
+      gui_browser:
+        description: Browser for the GUI tests
+        type: choice
+        options: [all, gui-chromium, gui-firefox, gui-webkit, gui-edge]
+        default: all
+      visual_tests:
+        description: Visual tests (compares the live MoroSystems website)
+        type: boolean
+        default: false
 
 # A newer push to a pull request makes its older runs pointless. Runs on main are never cancelled.
 concurrency:
@@ -23,7 +51,8 @@ env:
 jobs:
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.lint }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
 
     steps:
@@ -47,7 +76,8 @@ jobs:
 
   typecheck:
     name: Typecheck
-    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.typecheck }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
 
     steps:
@@ -71,7 +101,8 @@ jobs:
 
   api:
     name: API tests
-    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.api_tests }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
 
     steps:
@@ -108,14 +139,18 @@ jobs:
           if-no-files-found: warn
 
   gui:
-    name: GUI tests (${{ matrix.project }})
-    runs-on: ubuntu-latest
+    # GitHub adds the browser project to the name ("GUI tests (gui-chromium)"). Put into the name here,
+    # it would show unfilled on a skipped job.
+    name: GUI tests
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.gui_tests }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       # Let every browser finish, so one failing browser doesn't hide the results of the others.
       fail-fast: false
       matrix:
-        project: [gui-chromium, gui-firefox, gui-webkit, gui-edge]
+        # All browsers, or only the one chosen for a manual run
+        project: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.gui_browser != 'all' && format('["{0}"]', inputs.gui_browser) || '["gui-chromium", "gui-firefox", "gui-webkit", "gui-edge"]') }}
 
     steps:
       - name: Checkout code
@@ -162,6 +197,74 @@ jobs:
         uses: actions/upload-artifact@v7.0.1
         with:
           name: report-${{ matrix.project }}
+          path: test-output/
+          retention-days: 7
+          if-no-files-found: warn
+
+  # Only on manual runs: the visual tests compare the live MoroSystems website, which changes independently
+  # of this repository, so a difference there must not block pushes and pull requests here.
+  visual:
+    name: Visual tests (Chromium, Firefox)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.visual_tests }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.0
+
+      # Only reads the Playwright version for the Docker image; dependencies are installed inside the container
+      - name: Setup Node.js
+        uses: actions/setup-node@v6.3.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Check for baseline snapshots
+        id: baselines
+        run: |
+          if find tests/visual -path '*-snapshots/linux/*' -name '*.png' | grep -q .; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No Linux baselines in tests/visual - generate them with npm run test:visual:docker:update."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Read Playwright version
+        id: playwright
+        if: ${{ steps.baselines.outputs.found == 'true' }}
+        run: echo "version=$(node -p "require('./package.json').devDependencies['@playwright/test']")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright Docker image
+        id: docker-cache
+        if: ${{ steps.baselines.outputs.found == 'true' }}
+        uses: actions/cache@v6.0.0
+        with:
+          path: /tmp/playwright-docker-image
+          key: playwright-docker-v${{ steps.playwright.outputs.version }}-noble-amd64
+
+      - name: Load or pull Playwright Docker image
+        if: ${{ steps.baselines.outputs.found == 'true' }}
+        run: |
+          IMAGE="mcr.microsoft.com/playwright:v${{ steps.playwright.outputs.version }}-noble"
+          CACHE_FILE="/tmp/playwright-docker-image/playwright.tar"
+          if [[ -f "$CACHE_FILE" ]]; then
+            docker load -i "$CACHE_FILE"
+          else
+            docker pull --platform linux/amd64 "$IMAGE"
+            mkdir -p /tmp/playwright-docker-image
+            docker save "$IMAGE" -o "$CACHE_FILE"
+          fi
+
+      - name: Run visual tests
+        if: ${{ steps.baselines.outputs.found == 'true' }}
+        run: npm run test:visual:docker
+
+      # Contains the expected, actual and diff images of every failed comparison
+      - name: Publish visual test report
+        if: ${{ !cancelled() && steps.baselines.outputs.found == 'true' }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: report-visual
           path: test-output/
           retention-days: 7
           if-no-files-found: warn

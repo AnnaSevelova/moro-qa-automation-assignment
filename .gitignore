@@ -6,3 +6,7 @@ node_modules/
 /test-output/
 /blob-report/
 /playwright/.cache/
+
+# Visual baselines: only the Linux ones are committed (CI compares on Linux)
+/tests/visual/*-snapshots/darwin/
+/tests/visual/*-snapshots/win32/
