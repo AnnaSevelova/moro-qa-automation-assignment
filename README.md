@@ -104,6 +104,8 @@ Instead of relying on pixel comparison, these tests verify that:
 
 Viewport definitions are in `tests/gui/fixtures/test-data.ts`.
 
+**Accessibility finding:** the MoroSystems logo link has no accessible name, because its image has no alt text. Screen readers announce it only as "link", and the tests locate it by its link target instead of its name.
+
 ### API tests (`tests/api/`)
 
 The tests run against an **unchanged copy** of the [MoroSystems todo backend](https://github.com/morosystems/todo-be), commit `2cfa7c3`, stored in `apps/todo-be`. It retains its own `package-lock.json` and dependencies.
@@ -121,7 +123,7 @@ npm run api:start                               # Start it manually
 API_BASE_URL=http://host:port npm run test:api  # Test another backend
 ```
 
-The default backend address is `http://localhost:8080`, with Swagger UI at `http://localhost:8080/api-docs`. If a backend is already running on port 8080, Playwright reuses it.
+The default backend address is `http://localhost:8080`, with Swagger UI at `http://localhost:8080/api-docs`. Locally, a backend already running on port 8080 is reused; in CI it never is, so CI always tests a freshly started backend.
 
 API tests run in parallel against a shared backend. Each test creates and cleans up its own tasks through the `createTask` fixture; tests do not assume any particular initial task list or order. `GET /tasks` deliberately takes about three seconds, so listing tests may take longer.
 
@@ -213,7 +215,6 @@ If PUT is implemented later, the explicit negative check will fail and signal th
 | Unknown IDs are documented as returning `400`, but the backend returns `404` | Assert the observed `404`; documentation needs correction |
 | Task-list endpoints use a one-argument `sort()` callback that does not sort by date | Do not assert undocumented ordering |
 | OpenAPI describes `422` errors as JSON, but actual responses are plain text with `text/html` | Assert the real response and content type |
-| The MoroSystems logo link lacks an accessible name because its image has no alt text | Recorded as an accessibility finding |
 
 ### OpenAPI-generated types
 
@@ -236,7 +237,7 @@ The workflow is defined in `.github/workflows/tests.yml`.
 | Trigger | Checks |
 | --- | --- |
 | Push to `main` | Lint, typecheck, API types, API tests and GUI tests |
-| Pull request | Same checks, with GUI browser projects running in parallel |
+| Pull request | Same checks as a push to `main` |
 | Manual workflow dispatch | Select individual jobs and GUI browsers; optionally include visual tests |
 
 A manual run is available under **GitHub Actions → Tests → Run workflow**. All jobs except visual tests are selected by default. **Live Google checks never run in CI.**
@@ -248,7 +249,7 @@ Additional CI details:
 - Executes GUI projects independently, so failure in one browser does not cancel the others.
 - Pins action versions, uses read-only `contents` permissions and caches npm packages and Playwright browsers.
 - Disables dependency install scripts in CI; the backend is installed explicitly from its own lockfile.
-- Retries failed tests up to twice; passing on retry is reported as **flaky**.
+- Retries failed GUI and API tests up to twice; passing on retry is reported as **flaky**. Visual tests are never retried, because a visual difference is a result, not flakiness.
 - Uploads test artifacts after every run, including successful runs; artifacts are retained for **7 days**.
 
 ### View results
@@ -263,7 +264,7 @@ Generated output is gitignored and stored under `test-output/`:
 - `report/` and `results/`: standard HTML report, screenshots, video and traces of failures.
 - `visual-report/` and `visual-results/`: visual test report and expected/actual/diff screenshots.
 
-CI artifacts are named `report-api` or `report-gui-<browser>`. Download and extract an artifact, then open the report with:
+CI artifacts are named `report-api`, `report-gui-<browser>` or `report-visual`. Download and extract an artifact, then open the report with:
 
 ```bash
 npx playwright show-report <folder>/report
