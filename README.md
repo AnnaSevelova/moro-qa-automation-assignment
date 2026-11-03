@@ -6,10 +6,19 @@ Automated tests for the MoroSystems automation tester assignment, written in
 - **GUI tests:** searching for MoroSystems on Google, opening the MoroSystems website, visiting
   the "Kariéra" page and filtering open positions by city
 - **API tests:** the [todo backend](https://github.com/morosystems/todo-be) (a copy is in `apps/todo-be`):
-  creating, listing, updating, completing and deleting tasks, plus invalid requests
+  creating, listing, updating, completing and deleting tasks, plus invalid requests, with the API client
+  typed from the backend's OpenAPI description
+- **Cross-browser:** the GUI tests run in Chromium, Firefox, WebKit (Safari's engine) and Microsoft Edge
+- **Responsive design:** the MoroSystems homepage and "Kariéra" page on phone, tablet, laptop and desktop sizes
+- **Visual regression:** both pages compared with baseline images
+- **Reporting and CI:** HTML report with screenshots, video and traces of failed tests; GitHub Actions runs
+  lint, type check and test API and GUI suites on every pull request
+  (Note: The Visual tests are leave out from the run on PR on purpose, as from my experience, they are better for testing e.g. on a chrone setup or after changes are made to not generate false-negative results.)
 
 ## Requirements
 - Node.js 22.6 or newer (`.nvmrc` pins Node 22, used by CI and `nvm use`), npm 10 or newer
+- optional: Microsoft Edge for the `gui-edge` project (the other browsers come with Playwright), and Docker
+  for comparing against the committed Linux baselines of the visual tests
 
 ## Setup
 - `npm install` installs the test dependencies, then installs the backend in `apps/todo-be` from its own
@@ -232,6 +241,8 @@ requests: a change on the live website would otherwise block unrelated changes h
 - `npm run test:report` opens the HTML report from the last run
 - everything a run generates goes to `test-output` (gitignored): the HTML report in `test-output/report`,
   screenshots, video and trace of failed tests in `test-output/results`
+- the visual tests have their own: `npm run test:visual:report` opens `test-output/visual-report`, with the
+  expected, actual and diff images of failed comparisons in `test-output/visual-results`
 
 ## Code quality
 - `npm run lint` runs ESLint and fails on any error or warning, `npm run lint:fix` fixes what it can
@@ -274,3 +285,12 @@ failed tests) after every run, not only on failure, because the report is the re
 The artifacts are named `report-api` or `report-gui-<browser>` and kept for 7 days. To view a report,
 download the artifact, unzip it and run `npx playwright show-report <folder>/report`. In CI, failed tests
 are retried up to twice, so a test that passes on a retry is reported as flaky instead of failed.
+
+## Contributing
+- Work on a branch (`feature/…`, `fix/…`, `refactor/…`), with one commit per topic. Commit messages follow
+  `type(scope): summary`, e.g. `test(gui): add responsive design check`, with types such as `feat`, `fix`,
+  `test`, `refactor`, `ci`, `docs`, `build` and `chore`, and a body explaining why.
+- Before pushing, run `npm run lint`, `npm run typecheck` and the tests the change affects.
+- Changes reach `main` only through pull requests whose CI checks pass, merged with a merge commit, so each
+  branch stays visible as one unit of work in the history.
+- After changing the backend's API, run `npm run api:generate` and commit the regenerated types.
