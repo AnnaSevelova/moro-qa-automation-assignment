@@ -16,6 +16,10 @@ on:
         description: Typecheck
         type: boolean
         default: true
+      api_types:
+        description: API types up to date
+        type: boolean
+        default: true
       api_tests:
         description: API tests
         type: boolean
@@ -98,6 +102,42 @@ jobs:
 
       - name: Run TypeScript compiler
         run: npm run typecheck
+
+  # The generated API types (npm run api:generate) must match what the backend currently publishes
+  api-types:
+    name: API types up to date
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.api_types }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.0
+
+      - name: Setup Node.js with cache
+        uses: actions/setup-node@v6.3.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            apps/todo-be/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install todo backend
+        run: npm ci --prefix apps/todo-be
+
+      - name: Generate API types
+        run: npm run api:generate
+
+      - name: Check generated API types are committed
+        run: |
+          if ! git diff --exit-code -- tests/api/generated; then
+            echo "::error::The generated API types are out of date. Run npm run api:generate and commit the result."
+            exit 1
+          fi
 
   api:
     name: API tests
