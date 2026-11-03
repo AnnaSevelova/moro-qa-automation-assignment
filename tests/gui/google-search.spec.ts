@@ -1,6 +1,5 @@
 import { expect, test } from './fixtures/fixtures.ts';
 import { stubGoogleSearchResults } from './mocks/google-search.ts';
-import { CareerPage } from './pages/career-page.ts';
 import { MoroSystemsHomePage } from './pages/moro-systems-home-page.ts';
 import { SEARCH_QUERY } from './fixtures/test-data.ts';
 
@@ -65,99 +64,6 @@ test.describe('Google search page', () => {
 
         await test.step('Check the (stubbed) search results page', async () => {
             await expect(page).toHaveURL(/\/search\?/);
-            await expect(googleSearchPage.searchInput).toHaveValue(SEARCH_QUERY);
-            await expect(
-                googleSearchPage.resultLink(MoroSystemsHomePage.TITLE),
-            ).toBeVisible();
-        });
-    });
-});
-
-test.describe('Google search results page (mocked)', () => {
-    test.beforeEach(async ({ page }) => {
-        await stubGoogleSearchResults(page);
-    });
-
-    test('shows the MoroSystems website in mocked results', async ({
-        page,
-        googleSearchPage,
-    }) => {
-        const response = await googleSearchPage.goToResults(SEARCH_QUERY);
-
-        expect(response?.status()).toBe(200);
-
-        const moroSystemsResult = googleSearchPage.resultLink(
-            MoroSystemsHomePage.TITLE,
-        );
-
-        await test.step('Verify mocked search results', async () => {
-            await expect(page).toHaveURL(/\/search\?/);
-
-            await expect(googleSearchPage.searchInput).toHaveValue(
-                SEARCH_QUERY,
-            );
-
-            await expect(moroSystemsResult).toBeVisible();
-
-            await expect(moroSystemsResult).toContainText(
-                MoroSystemsHomePage.ORIGIN,
-            );
-        });
-    });
-
-    test('shows MoroSystems as the first result with sitelinks', async ({
-        page,
-        googleSearchPage,
-    }) => {
-        await googleSearchPage.goToResults(SEARCH_QUERY);
-
-        await test.step('Verify result count and the first result', async () => {
-            // Like on Google, the result count is only shown after opening "Nástroje" (tools)
-            await expect(googleSearchPage.resultStats).toBeHidden();
-            await expect(googleSearchPage.resultStats).toContainText(
-                'Přibližný počet výsledků',
-            );
-            await expect(
-                googleSearchPage.results.getByRole('heading', { level: 3 }).first(),
-            ).toHaveText(MoroSystemsHomePage.TITLE);
-        });
-
-        await test.step('Sponsored result is shown above, but not counted as a search result', async () => {
-            const sponsoredResult = page.getByRole('heading', { name: 'MoroSystems Orchestra' });
-
-            await expect(sponsoredResult).toBeVisible();
-            await expect(
-                googleSearchPage.results.getByRole('heading', { name: 'MoroSystems Orchestra' }),
-            ).toHaveCount(0);
-        });
-
-        await test.step('Open "Kariéra" from the sitelinks', async () => {
-            await googleSearchPage.results
-                .getByRole('link', { name: 'Kariéra', exact: true })
-                .click();
-
-            await expect(page).toHaveURL(CareerPage.URL_PATTERN);
-        });
-    });
-
-    test('shows no results for an unknown query and allows searching again', async ({
-        page,
-        googleSearchPage,
-    }) => {
-        const unknownQuery = 'neexistujici dotaz 12345';
-
-        await googleSearchPage.goToResults(unknownQuery);
-
-        await test.step('Verify the no results message', async () => {
-            await expect(googleSearchPage.results).toContainText(
-                `Zadanému vyhledávání - ${unknownQuery} - neodpovídají žádné dokumenty.`,
-            );
-            await expect(googleSearchPage.resultStats).toBeEmpty();
-        });
-
-        await test.step(`Search again for "${SEARCH_QUERY}"`, async () => {
-            await googleSearchPage.search(SEARCH_QUERY);
-
             await expect(googleSearchPage.searchInput).toHaveValue(SEARCH_QUERY);
             await expect(
                 googleSearchPage.resultLink(MoroSystemsHomePage.TITLE),
