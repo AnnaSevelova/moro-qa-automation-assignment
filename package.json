@@ -11,6 +11,7 @@
   "scripts": {
     "postinstall": "npm ci --prefix apps/todo-be",
     "api:start": "npm start --prefix apps/todo-be",
+    "api:generate": "node scripts/generate-api-types.mjs",
     "test:gui": "playwright test --project=\"gui-*\" --grep-invert @live",
     "test:gui:live": "playwright test --project=gui-chromium --grep @live --workers=1",
     "test:api": "playwright test --project=api",
@@ -32,7 +33,13 @@
     "eslint": "9.39.4",
     "eslint-plugin-playwright": "2.10.4",
     "globals": "17.6.0",
+    "openapi-typescript": "7.13.0",
     "typescript": "6.0.3",
     "typescript-eslint": "8.61.1"
+  },
+  "overrides": {
+    "openapi-typescript": {
+      "typescript": "$typescript"
+    }
   }
 }

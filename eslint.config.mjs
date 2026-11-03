@@ -12,8 +12,8 @@ import tsEslint from 'typescript-eslint';
  */
 export default tsEslint.config(
     {
-        // Generated output and the tested backend, which is an unchanged copy of another repository
-        ignores: ['node_modules/', 'test-output/', 'apps/'],
+        // Generated output, the tested backend (an unchanged copy of another repository) and generated API types
+        ignores: ['node_modules/', 'test-output/', 'apps/', 'tests/api/generated/'],
     },
     {
         languageOptions: {
