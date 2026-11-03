@@ -232,7 +232,7 @@ The API client uses [openapi-typescript](https://openapi-ts.dev/) to generate ty
 npm run api:generate
 ```
 
-This saves `tests/api/generated/openapi.json` and produces `tests/api/generated/openapi-types.ts`. Both are committed. The client's `Task` type and successful-response (`*Ok`) helpers use these definitions; raw client methods can still send invalid bodies for negative tests. CI regenerates the files and fails if they do not match the committed contract.
+This saves `tests/api/generated/openapi.json` and produces `tests/api/generated/openapi-types.ts`. Both are committed. This generates API types, not a connector: the HTTP client is handwritten, so the optional connector-codegen challenge is only partially implemented. The client's `Task` type and successful-response (`*Ok`) helpers use these definitions; raw client methods can still send invalid bodies for negative tests. CI regenerates the files and fails if they do not match the committed contract.
 
 The generated types reflect **the published specification**, including its documented discrepancies, while negative tests assert the **actual API responses**. Generated files are excluded from linting.
 
