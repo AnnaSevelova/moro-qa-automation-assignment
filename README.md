@@ -137,14 +137,13 @@ git checkout -- apps/todo-be/data/db.json
 
 Full-page screenshots of the MoroSystems homepage and **Kariéra** page are compared against baseline images. The screenshot comparison allows `threshold: 0.2` per pixel, with no more than **1% of pixels differing**.
 
-To reduce noise from unrelated live-content changes, the screenshot helper (`tests/visual/support/stable-page.ts`):
+The screenshot helper (`tests/visual/support/stable-page.ts`) renders the pages as users see them, with scripts, photos and background images, and makes them comparable between runs:
 
-- Loads HTML, CSS, fonts and images without running page scripts.
-- Disables animations, transitions and scrollbars.
-- Hides photographs and CSS background images.
-- Removes changing sections (open positions, latest articles and team carousel) from the layout.
+- Rejects optional cookies and disables animations and transitions.
+- Scrolls through the page so lazy-loaded images load, then waits for fonts and images.
+- Removes sections whose content changes (open positions, latest articles and the team carousel) from the layout, so new job openings or articles change neither the screenshot nor the page height.
 
-The remaining layout, navigation, text, filter and footer are compared. Hiding background images also removes some decorative elements, including the yellow box behind the **Kariéra** heading; this is an intentional trade-off.
+Everything else is compared, including photos and decorative background images. A change to the website's content or images outside the removed sections still causes a difference to review: either a regression, or a reason to update the baselines.
 
 **Visual test commands:**
 
