@@ -1,17 +1,20 @@
 import { expect, type APIRequestContext, type APIResponse } from '@playwright/test';
 
-export type Task = {
-    id: string;
-    text: string;
-    completed: boolean;
-    createdDate: number;
-    completedDate?: number;
-};
+import type { components, paths } from '../generated/openapi-types.ts';
+
+/** A task, as the backend's OpenAPI description defines it. */
+export type Task = components['schemas']['Task'];
+type CreateTask = components['schemas']['CreateTask'];
+
+/** JSON body of the successful (200) response of an endpoint, as the backend's OpenAPI description defines it. */
+type OkBody<Path extends keyof paths, Method extends 'get' | 'post'> =
+    paths[Path][Method] extends { responses: { 200: { content: { 'application/json': infer Body } } } } ? Body : never;
 
 /**
  * Thin client for the todo backend (https://github.com/morosystems/todo-be).
- * The raw methods return the response so tests can check status codes and error messages,
- * the `*Ok` helpers additionally expect success and return the parsed task.
+ * The raw methods return the response so tests can check status codes and error messages; they accept any
+ * body, so tests can also send invalid ones. The `*Ok` helpers additionally expect success and return the
+ * parsed body, typed from the generated OpenAPI types (npm run api:generate).
  */
 export class TodoApi {
     constructor(private readonly request: APIRequestContext) {}
@@ -44,20 +47,22 @@ export class TodoApi {
         return this.request.delete(`/tasks/${encodeURIComponent(id)}`);
     }
 
-    async getAllOk(): Promise<Task[]> {
-        return expectJson<Task[]>(await this.getAll());
+    async getAllOk(): Promise<OkBody<'/tasks', 'get'>> {
+        return expectJson(await this.getAll());
     }
 
-    async getCompletedOk(): Promise<Task[]> {
-        return expectJson<Task[]>(await this.getCompleted());
+    async getCompletedOk(): Promise<OkBody<'/tasks/completed', 'get'>> {
+        return expectJson(await this.getCompleted());
     }
 
-    async createOk(text: string): Promise<Task> {
-        return expectJson<Task>(await this.create({ text }));
+    async createOk(text: string): Promise<OkBody<'/tasks', 'post'>> {
+        const body: CreateTask = { text };
+
+        return expectJson(await this.create(body));
     }
 
-    async completeOk(id: string): Promise<Task> {
-        return expectJson<Task>(await this.complete(id));
+    async completeOk(id: string): Promise<OkBody<'/tasks/{id}/complete', 'post'>> {
+        return expectJson(await this.complete(id));
     }
 }
 
